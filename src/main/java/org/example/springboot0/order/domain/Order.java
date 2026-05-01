@@ -1,6 +1,8 @@
 package org.example.springboot0.order.domain;
 
 import jakarta.persistence.*;
+import org.example.springboot0.customer.domain.Customer;
+
 import java.util.List;
 
 @Entity
@@ -11,15 +13,15 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(nullable = false)
-    private String customerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "order_id")
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items;
 
     @Column(nullable = false)
@@ -27,9 +29,9 @@ public class Order {
 
     public Order() {}
 
-    public Order(String id, String customerId, OrderStatus status, List<OrderItem> items, double totalPrice) {
+    public Order(String id, Customer customer, OrderStatus status, List<OrderItem> items, double totalPrice) {
         this.id = id;
-        this.customerId = customerId;
+        this.customer = customer;
         this.status = status;
         this.items = items;
         this.totalPrice = totalPrice;
@@ -38,8 +40,8 @@ public class Order {
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
-    public String getCustomerId() { return customerId; }
-    public void setCustomerId(String customerId) { this.customerId = customerId; }
+    public Customer getCustomer() { return customer; }
+    public void setCustomer(Customer customer) { this.customer = customer; }
 
     public OrderStatus getStatus() { return status; }
     public void setStatus(OrderStatus status) { this.status = status; }

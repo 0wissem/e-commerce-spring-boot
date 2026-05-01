@@ -10,6 +10,10 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
+    private Order order;
+
     @Column(nullable = false)
     private String productId;
 
@@ -38,6 +42,9 @@ public class OrderItem {
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
 
     public String getProductId() { return productId; }
     public void setProductId(String productId) { this.productId = productId; }

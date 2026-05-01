@@ -13,10 +13,12 @@ import org.example.springboot0.product.domain.IProductRepository;
 import org.example.springboot0.product.domain.Product;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 public class OrderService implements IOrderService {
 
     private final IOrderRepository orderRepository;
@@ -37,22 +39,14 @@ public class OrderService implements IOrderService {
     @Override
     public List<OrderResponse> getAll() {
         return orderRepository.findAll().stream()
-                .map(order -> {
-                    String customerName = customerRepository.findById(order.getCustomerId())
-                            .map(Customer::getName)
-                            .orElse("Unknown");
-                    return orderMapper.toResponse(order, customerName);
-                })
+                .map(order -> orderMapper.toResponse(order, order.getCustomer().getName()))
                 .toList();
     }
 
     public OrderResponse getById(String id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", id));
-        String customerName = customerRepository.findById(order.getCustomerId())
-                .map(Customer::getName)
-                .orElse("Unknown");
-        return orderMapper.toResponse(order, customerName);
+        return orderMapper.toResponse(order, order.getCustomer().getName());
     }
 
     @Override
@@ -84,7 +78,8 @@ public class OrderService implements IOrderService {
 
         double totalPrice = items.stream().mapToDouble(OrderItem::getSubtotal).sum();
 
-        Order order = new Order(null, customer.getId(), OrderStatus.PENDING, items, totalPrice);
+        Order order = new Order(null, customer, OrderStatus.PENDING, items, totalPrice);
+        items.forEach(item -> item.setOrder(order));
         return orderMapper.toResponse(orderRepository.save(order), customer.getName());
     }
 
@@ -93,10 +88,7 @@ public class OrderService implements IOrderService {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", id));
         order.setStatus(request.status());
-        String customerName = customerRepository.findById(order.getCustomerId())
-                .map(Customer::getName)
-                .orElse("Unknown");
-        return orderMapper.toResponse(orderRepository.save(order), customerName);
+        return orderMapper.toResponse(orderRepository.save(order), order.getCustomer().getName());
     }
 
     @Override

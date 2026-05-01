@@ -28,7 +28,7 @@ public class OrderMapper {
                 .toList();
         return new OrderResponse(
                 order.getId(),
-                order.getCustomerId(),
+                order.getCustomer().getId(),
                 customerName,
                 order.getStatus(),
                 items,
