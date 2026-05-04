@@ -4,8 +4,10 @@ import org.example.springboot0.category.domain.Category;
 import org.example.springboot0.category.domain.ICategoryRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public class CategoryRepositoryAdapter implements ICategoryRepository {
@@ -27,6 +29,9 @@ public class CategoryRepositoryAdapter implements ICategoryRepository {
 
     @Override
     public Category save(Category category) { return jpa.save(category); }
+
+    @Override
+    public Set<Category> findAllByIds(List<String> ids) { return new HashSet<>(jpa.findAllById(ids)); }
 
     @Override
     public boolean existsById(String id) { return jpa.existsById(id); }
