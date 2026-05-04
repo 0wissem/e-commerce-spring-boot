@@ -2,12 +2,15 @@ package org.example.springboot0.product.domain;
 
 import jakarta.persistence.*;
 import org.example.springboot0.category.domain.Category;
+import org.hibernate.annotations.SQLRestriction;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
 @Table(name = "products")
+@SQLRestriction("deleted_at IS NULL")
 public class Product {
 
     @Id
@@ -31,6 +34,9 @@ public class Product {
 
     @Column(nullable = false)
     private int stockQuantity;
+
+    @Column
+    private LocalDateTime deletedAt;
 
     public Product() {}
 
@@ -59,4 +65,7 @@ public class Product {
 
     public Set<Category> getCategories() { return categories; }
     public void setCategories(Set<Category> categories) { this.categories = categories; }
+
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 }

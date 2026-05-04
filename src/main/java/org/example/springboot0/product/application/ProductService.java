@@ -82,9 +82,9 @@ public class ProductService implements IProductService {
 
     @Override
     public void delete(String id) {
-        if (!productRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Product", id);
-        }
-        productRepository.deleteById(id);
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+        product.setDeletedAt(java.time.LocalDateTime.now());
+        productRepository.save(product);
     }
 }
