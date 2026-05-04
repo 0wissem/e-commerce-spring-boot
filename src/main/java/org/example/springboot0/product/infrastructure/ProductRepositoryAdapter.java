@@ -2,6 +2,8 @@ package org.example.springboot0.product.infrastructure;
 
 import org.example.springboot0.product.domain.IProductRepository;
 import org.example.springboot0.product.domain.Product;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +20,9 @@ public class ProductRepositoryAdapter implements IProductRepository {
 
     @Override
     public List<Product> findAll() { return jpa.findAll(); }
+
+    @Override
+    public Page<Product> findAll(Pageable pageable) { return jpa.findAll(pageable); }
 
     @Override
     public Optional<Product> findById(String id) { return jpa.findById(id); }

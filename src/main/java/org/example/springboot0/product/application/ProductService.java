@@ -6,6 +6,8 @@ import org.example.springboot0.product.application.dto.ProductResponse;
 import org.example.springboot0.product.domain.IProductRepository;
 import org.example.springboot0.product.domain.Product;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
+import org.example.springboot0.shared.response.PageResponse;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,14 @@ public class ProductService implements IProductService {
         return productRepository.findAll().stream()
                 .map(productMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    public PageResponse<ProductResponse> getAll(int page, int size) {
+        return PageResponse.from(
+                productRepository.findAll(PageRequest.of(page, size))
+                        .map(productMapper::toResponse)
+        );
     }
 
     @Override

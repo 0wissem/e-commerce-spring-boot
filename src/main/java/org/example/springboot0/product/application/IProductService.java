@@ -2,11 +2,13 @@ package org.example.springboot0.product.application;
 
 import org.example.springboot0.product.application.dto.ProductRequest;
 import org.example.springboot0.product.application.dto.ProductResponse;
+import org.example.springboot0.shared.response.PageResponse;
 
 import java.util.List;
 
 public interface IProductService {
     List<ProductResponse> getAll();
+    PageResponse<ProductResponse> getAll(int page, int size);
     ProductResponse getById(String id);
     ProductResponse getByName(String name);
     ProductResponse create(ProductRequest request);

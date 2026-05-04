@@ -4,12 +4,12 @@ import org.example.springboot0.product.application.IProductService;
 import org.example.springboot0.product.application.dto.ProductRequest;
 import org.example.springboot0.product.application.dto.ProductResponse;
 import org.example.springboot0.shared.response.ApiResponse;
+import org.example.springboot0.shared.response.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
@@ -22,8 +22,10 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ProductResponse>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.ok(productService.getAll()));
+    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(productService.getAll(page, size)));
     }
 
     @GetMapping("/{id}")
