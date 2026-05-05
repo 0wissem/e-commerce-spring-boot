@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?query=laptop&inStock=true&page=0&size=3\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -sv \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?query=laptop&inStock=true&page=0&size=3\")"
+    ]
+  }
+}
