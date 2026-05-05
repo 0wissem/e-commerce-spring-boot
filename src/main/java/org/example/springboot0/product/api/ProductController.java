@@ -3,6 +3,7 @@ package org.example.springboot0.product.api;
 import org.example.springboot0.product.application.IProductService;
 import org.example.springboot0.product.application.dto.ProductRequest;
 import org.example.springboot0.product.application.dto.ProductResponse;
+import org.example.springboot0.product.application.dto.ProductSearchRequest;
 import org.example.springboot0.shared.response.ApiResponse;
 import org.example.springboot0.shared.response.PageResponse;
 import jakarta.validation.Valid;
@@ -26,6 +27,19 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.ok(productService.getAll(page, size)));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> search(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) String categoryId,
+            @RequestParam(required = false) Boolean inStock,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        ProductSearchRequest request = new ProductSearchRequest(query, minPrice, maxPrice, categoryId, inStock, page, size);
+        return ResponseEntity.ok(ApiResponse.ok(productService.search(request)));
     }
 
     @GetMapping("/{id}")

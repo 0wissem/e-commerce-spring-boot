@@ -2,6 +2,7 @@ package org.example.springboot0.product.application;
 
 import org.example.springboot0.product.application.dto.ProductRequest;
 import org.example.springboot0.product.application.dto.ProductResponse;
+import org.example.springboot0.product.application.dto.ProductSearchRequest;
 import org.example.springboot0.shared.response.PageResponse;
 
 import java.util.List;
@@ -14,4 +15,5 @@ public interface IProductService {
     ProductResponse create(ProductRequest request);
     ProductResponse update(String id, ProductRequest request);
     void delete(String id);
+    PageResponse<ProductResponse> search(ProductSearchRequest request);
 }

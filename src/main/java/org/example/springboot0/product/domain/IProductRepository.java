@@ -14,4 +14,5 @@ public interface IProductRepository {
     Product save(Product product);
     boolean existsById(String id);
     void deleteById(String id);
+    Page<Product> search(String query, Double minPrice, Double maxPrice, String categoryId, Boolean inStock, Pageable pageable);
 }
