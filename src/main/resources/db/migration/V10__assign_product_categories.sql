@@ -1,12 +1,12 @@
-INSERT INTO categories (id, name) VALUES
-('00000000-0000-0000-0000-000000000001', 'Electronics'),
-('00000000-0000-0000-0000-000000000002', 'Computers & Laptops'),
-('00000000-0000-0000-0000-000000000003', 'Peripherals'),
-('00000000-0000-0000-0000-000000000004', 'Audio & Sound'),
-('00000000-0000-0000-0000-000000000005', 'Mobile & Tablets'),
-('00000000-0000-0000-0000-000000000006', 'Sports & Fitness'),
-('00000000-0000-0000-0000-000000000007', 'Kitchen & Home'),
-('00000000-0000-0000-0000-000000000008', 'Gaming')
+INSERT INTO categories (id, name, description) VALUES
+('00000000-0000-0000-0000-000000000001', 'Electronics', 'General electronics and gadgets'),
+('00000000-0000-0000-0000-000000000002', 'Computers & Laptops', 'Desktop and laptop computers'),
+('00000000-0000-0000-0000-000000000003', 'Peripherals', 'Computer peripherals and accessories'),
+('00000000-0000-0000-0000-000000000004', 'Audio & Sound', 'Headphones, speakers and audio equipment'),
+('00000000-0000-0000-0000-000000000005', 'Mobile & Tablets', 'Smartphones, tablets and wearables'),
+('00000000-0000-0000-0000-000000000006', 'Sports & Fitness', 'Sports equipment and fitness gear'),
+('00000000-0000-0000-0000-000000000007', 'Kitchen & Home', 'Kitchen appliances and home decor'),
+('00000000-0000-0000-0000-000000000008', 'Gaming', 'Gaming hardware and accessories')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO product_categories (product_id, category_id)
