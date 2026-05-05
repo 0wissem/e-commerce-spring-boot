@@ -3,7 +3,8 @@
     "allow": [
       "Bash(curl -s \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?query=laptop&inStock=true&page=0&size=3\")",
       "Bash(python3 -m json.tool)",
-      "Bash(curl -sv \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?query=laptop&inStock=true&page=0&size=3\")"
+      "Bash(curl -sv \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?query=laptop&inStock=true&page=0&size=3\")",
+      "Bash(curl -s \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?categoryId=00000000-0000-0000-0000-000000000006&page=0&size=3\")"
     ]
   }
 }
