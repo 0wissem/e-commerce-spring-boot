@@ -1,19 +1,95 @@
-INSERT INTO products (id, name, price, stock_quantity)
-SELECT
-    gen_random_uuid()::text,
-    (ARRAY[
-        'Gaming Laptop', 'Ultra Slim Laptop', 'Business Laptop', 'Gaming Desktop', 'Mini PC',
-        'Mechanical Keyboard', 'Wireless Mouse', '4K Monitor', 'Curved Monitor', 'Webcam HD',
-        'USB Hub', 'External SSD', 'RAM DDR5', 'Gaming Headset', 'Noise Cancelling Headphones',
-        'Bluetooth Speaker', 'Smart Speaker', 'Smartphone Pro', 'Tablet WiFi', 'Smartwatch',
-        'Fitness Tracker', 'Wireless Earbuds', 'Running Shoes', 'Yoga Mat', 'Dumbbell Set',
-        'Resistance Bands', 'Cycling Helmet', 'Mountain Bike', 'Tennis Racket', 'Basketball',
-        'Coffee Machine', 'Air Fryer', 'Blender', 'Microwave Oven', 'Robot Vacuum',
-        'Air Purifier', 'Electric Toothbrush', 'Hair Dryer', 'Desk Lamp', 'Office Chair',
-        'Standing Desk', 'Bookshelf', 'Gaming Controller', 'VR Headset', 'Drone Camera',
-        'Action Camera', 'Portable Charger', 'Smart Thermostat', 'Security Camera', 'LED Strip'
-    ])[1 + floor(random() * 50)::int]
-    || ' ' || i,
-    round((random() * 1900 + 10)::numeric, 2),
-    floor(random() * 500)::int
-FROM generate_series(1, 10000) AS s(i);
+-- Seed categories with fixed IDs
+INSERT INTO categories (id, name) VALUES
+('00000000-0000-0000-0000-000000000001', 'Electronics'),
+('00000000-0000-0000-0000-000000000002', 'Computers & Laptops'),
+('00000000-0000-0000-0000-000000000003', 'Peripherals'),
+('00000000-0000-0000-0000-000000000004', 'Audio & Sound'),
+('00000000-0000-0000-0000-000000000005', 'Mobile & Tablets'),
+('00000000-0000-0000-0000-000000000006', 'Sports & Fitness'),
+('00000000-0000-0000-0000-000000000007', 'Kitchen & Home'),
+('00000000-0000-0000-0000-000000000008', 'Gaming')
+ON CONFLICT (id) DO NOTHING;
+
+-- Product type → category mapping
+CREATE TEMP TABLE product_type_map (
+    type_idx  int,
+    type_name text,
+    cat1      text,
+    cat2      text
+);
+
+INSERT INTO product_type_map (type_idx, type_name, cat1, cat2) VALUES
+(0,  'Gaming Laptop',               '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000008'),
+(1,  'Ultra Slim Laptop',           '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001'),
+(2,  'Business Laptop',             '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001'),
+(3,  'Gaming Desktop',              '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000008'),
+(4,  'Mini PC',                     '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001'),
+(5,  'Mechanical Keyboard',         '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000008'),
+(6,  'Wireless Mouse',              '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001'),
+(7,  '4K Monitor',                  '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001'),
+(8,  'Curved Monitor',              '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001'),
+(9,  'Webcam HD',                   '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001'),
+(10, 'USB Hub',                     '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001'),
+(11, 'External SSD',                '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'),
+(12, 'RAM DDR5',                    '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'),
+(13, 'Gaming Headset',              '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000008'),
+(14, 'Noise Cancelling Headphones', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001'),
+(15, 'Bluetooth Speaker',           '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001'),
+(16, 'Smart Speaker',               '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000007'),
+(17, 'Smartphone Pro',              '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000001'),
+(18, 'Tablet WiFi',                 '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000001'),
+(19, 'Smartwatch',                  '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000006'),
+(20, 'Fitness Tracker',             '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000006'),
+(21, 'Wireless Earbuds',            '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005'),
+(22, 'Running Shoes',               '00000000-0000-0000-0000-000000000006', NULL),
+(23, 'Yoga Mat',                    '00000000-0000-0000-0000-000000000006', NULL),
+(24, 'Dumbbell Set',                '00000000-0000-0000-0000-000000000006', NULL),
+(25, 'Resistance Bands',            '00000000-0000-0000-0000-000000000006', NULL),
+(26, 'Cycling Helmet',              '00000000-0000-0000-0000-000000000006', NULL),
+(27, 'Mountain Bike',               '00000000-0000-0000-0000-000000000006', NULL),
+(28, 'Tennis Racket',               '00000000-0000-0000-0000-000000000006', NULL),
+(29, 'Basketball',                  '00000000-0000-0000-0000-000000000006', NULL),
+(30, 'Coffee Machine',              '00000000-0000-0000-0000-000000000007', NULL),
+(31, 'Air Fryer',                   '00000000-0000-0000-0000-000000000007', NULL),
+(32, 'Blender',                     '00000000-0000-0000-0000-000000000007', NULL),
+(33, 'Microwave Oven',              '00000000-0000-0000-0000-000000000007', NULL),
+(34, 'Robot Vacuum',                '00000000-0000-0000-0000-000000000007', NULL),
+(35, 'Air Purifier',                '00000000-0000-0000-0000-000000000007', NULL),
+(36, 'Electric Toothbrush',         '00000000-0000-0000-0000-000000000007', NULL),
+(37, 'Hair Dryer',                  '00000000-0000-0000-0000-000000000007', NULL),
+(38, 'Desk Lamp',                   '00000000-0000-0000-0000-000000000007', NULL),
+(39, 'Office Chair',                '00000000-0000-0000-0000-000000000007', NULL),
+(40, 'Standing Desk',               '00000000-0000-0000-0000-000000000007', NULL),
+(41, 'Bookshelf',                   '00000000-0000-0000-0000-000000000007', NULL),
+(42, 'Gaming Controller',           '00000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000001'),
+(43, 'VR Headset',                  '00000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000001'),
+(44, 'Drone Camera',                '00000000-0000-0000-0000-000000000001', NULL),
+(45, 'Action Camera',               '00000000-0000-0000-0000-000000000001', NULL),
+(46, 'Portable Charger',            '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000005'),
+(47, 'Smart Thermostat',            '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000001'),
+(48, 'Security Camera',             '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000007'),
+(49, 'LED Strip',                   '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000001');
+
+-- Insert 10k products and assign categories in one CTE
+WITH inserted AS (
+    INSERT INTO products (id, name, price, stock_quantity)
+    SELECT
+        gen_random_uuid()::text,
+        m.type_name || ' ' || s.i,
+        round((random() * 1900 + 10)::numeric, 2),
+        floor(random() * 500)::int
+    FROM generate_series(1, 10000) s(i)
+    JOIN product_type_map m ON m.type_idx = (s.i - 1) % 50
+    RETURNING id, name
+)
+INSERT INTO product_categories (product_id, category_id)
+SELECT i.id, m.cat1
+FROM inserted i
+JOIN product_type_map m ON m.type_name = regexp_replace(i.name, ' [0-9]+$', '')
+UNION ALL
+SELECT i.id, m.cat2
+FROM inserted i
+JOIN product_type_map m ON m.type_name = regexp_replace(i.name, ' [0-9]+$', '')
+WHERE m.cat2 IS NOT NULL;
+
+DROP TABLE product_type_map;
