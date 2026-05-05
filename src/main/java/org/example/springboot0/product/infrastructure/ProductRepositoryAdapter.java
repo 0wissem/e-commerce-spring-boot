@@ -38,4 +38,9 @@ public class ProductRepositoryAdapter implements IProductRepository {
 
     @Override
     public void deleteById(String id) { jpa.deleteById(id); }
+
+    @Override
+    public Page<Product> search(String query, Double minPrice, Double maxPrice, String categoryId, Boolean inStock, Pageable pageable) {
+        return jpa.search(query, minPrice, maxPrice, categoryId, inStock, pageable);
+    }
 }

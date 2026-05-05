@@ -3,6 +3,7 @@ package org.example.springboot0.product.application;
 import org.example.springboot0.category.domain.ICategoryRepository;
 import org.example.springboot0.product.application.dto.ProductRequest;
 import org.example.springboot0.product.application.dto.ProductResponse;
+import org.example.springboot0.product.application.dto.ProductSearchRequest;
 import org.example.springboot0.product.domain.IProductRepository;
 import org.example.springboot0.product.domain.Product;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
@@ -86,5 +87,19 @@ public class ProductService implements IProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
         product.setDeletedAt(java.time.LocalDateTime.now());
         productRepository.save(product);
+    }
+
+    @Override
+    public PageResponse<ProductResponse> search(ProductSearchRequest request) {
+        return PageResponse.from(
+                productRepository.search(
+                        request.query(),
+                        request.minPrice(),
+                        request.maxPrice(),
+                        request.categoryId(),
+                        request.inStock(),
+                        PageRequest.of(request.page(), request.size())
+                ).map(productMapper::toResponse)
+        );
     }
 }
