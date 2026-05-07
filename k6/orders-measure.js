@@ -1,28 +1,39 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
-import { Trend } from 'k6/metrics';
+import { check, sleep, group } from 'k6';
+import { Trend, Rate } from 'k6/metrics';
 
 const BASE_URL = 'http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com';
 
-const ordersDuration = new Trend('orders_response_time', true);
+const ordersLatency = new Trend('orders_latency');
+const successRate = new Rate('orders_success_rate');
 
 export const options = {
-    vus: 10,
-    duration: '4m',
+    discardResponseBodies: true,
+    stages: [
+        { duration: '1m',  target: 200  },
+        { duration: '1m',  target: 500  },
+        { duration: '2m',  target: 1000 },
+        { duration: '2m',  target: 1000 },
+        { duration: '1m',  target: 0    },
+    ],
     thresholds: {
-        orders_response_time: ['p(95)<1000'],
+        'orders_latency': ['p(95)<3000'],
+        'orders_success_rate': ['rate>0.95'],
     },
 };
 
 export default function () {
-    const res = http.get(`${BASE_URL}/api/orders?page=0&size=10`);
+    group('Orders Under Search Load', function () {
+        const res = http.get(`${BASE_URL}/api/orders?page=0&size=10`);
 
-    ordersDuration.add(res.timings.duration);
+        ordersLatency.add(res.timings.duration);
+        successRate.add(res.status === 200);
 
-    check(res, {
-        'orders status 200': (r) => r.status === 200,
-        'orders response < 1s': (r) => r.timings.duration < 1000,
+        check(res, {
+            'status is 200': (r) => r.status === 200,
+            'status is NOT 5xx': (r) => r.status < 500,
+        });
     });
 
-    sleep(1);
+    sleep(Math.random() * 1 + 0.5);
 }
