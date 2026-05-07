@@ -1,6 +1,7 @@
 package org.example.springboot0.product.application;
 
 import org.example.springboot0.category.domain.ICategoryRepository;
+import org.example.springboot0.notification.application.LowStockNotificationService;
 import org.example.springboot0.product.application.dto.ProductRequest;
 import org.example.springboot0.product.application.dto.ProductResponse;
 import org.example.springboot0.product.application.dto.ProductSearchRequest;
@@ -21,13 +22,16 @@ public class ProductService implements IProductService {
     private final IProductRepository productRepository;
     private final ICategoryRepository categoryRepository;
     private final ProductMapper productMapper;
+    private final LowStockNotificationService notificationService;
 
     public ProductService(IProductRepository productRepository,
                           ICategoryRepository categoryRepository,
-                          ProductMapper productMapper) {
+                          ProductMapper productMapper,
+                          LowStockNotificationService notificationService) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.productMapper = productMapper;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -78,7 +82,9 @@ public class ProductService implements IProductService {
         if (request.categoryIds() != null) {
             product.setCategories(categoryRepository.findAllByIds(request.categoryIds()));
         }
-        return productMapper.toResponse(productRepository.save(product));
+        ProductResponse response = productMapper.toResponse(productRepository.save(product));
+        notificationService.notifyIfLowStock(product.getName(), product.getStockQuantity());
+        return response;
     }
 
     @Override
