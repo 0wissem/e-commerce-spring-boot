@@ -1,7 +1,8 @@
 package org.example.springboot0.product.application;
 
 import org.example.springboot0.category.domain.ICategoryRepository;
-import org.example.springboot0.notification.application.LowStockNotificationService;
+import org.example.springboot0.notification.application.StockEventProducer;
+import org.example.springboot0.notification.application.StockUpdatedEvent;
 import org.example.springboot0.product.application.dto.ProductRequest;
 import org.example.springboot0.product.application.dto.ProductResponse;
 import org.example.springboot0.product.application.dto.ProductSearchRequest;
@@ -22,16 +23,16 @@ public class ProductService implements IProductService {
     private final IProductRepository productRepository;
     private final ICategoryRepository categoryRepository;
     private final ProductMapper productMapper;
-    private final LowStockNotificationService notificationService;
+    private final StockEventProducer stockEventProducer;
 
     public ProductService(IProductRepository productRepository,
                           ICategoryRepository categoryRepository,
                           ProductMapper productMapper,
-                          LowStockNotificationService notificationService) {
+                          StockEventProducer stockEventProducer) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.productMapper = productMapper;
-        this.notificationService = notificationService;
+        this.stockEventProducer = stockEventProducer;
     }
 
     @Override
@@ -83,7 +84,7 @@ public class ProductService implements IProductService {
             product.setCategories(categoryRepository.findAllByIds(request.categoryIds()));
         }
         ProductResponse response = productMapper.toResponse(productRepository.save(product));
-        notificationService.notifyIfLowStock(product.getName(), product.getStockQuantity());
+        stockEventProducer.publish(new StockUpdatedEvent(product.getName(), product.getStockQuantity()));
         return response;
     }
 
