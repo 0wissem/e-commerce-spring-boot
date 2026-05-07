@@ -20,7 +20,7 @@ public class LowStockNotificationService {
     @Value("${app.notification.low-stock-threshold}")
     private int threshold;
 
-    @Value("${spring.mail.username}")
+    @Value("${app.notification.sender}")
     private String sender;
 
     public LowStockNotificationService(JavaMailSender mailSender) {
