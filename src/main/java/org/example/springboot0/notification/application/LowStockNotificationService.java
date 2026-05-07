@@ -20,6 +20,9 @@ public class LowStockNotificationService {
     @Value("${app.notification.low-stock-threshold}")
     private int threshold;
 
+    @Value("${spring.mail.username}")
+    private String sender;
+
     public LowStockNotificationService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
@@ -28,6 +31,7 @@ public class LowStockNotificationService {
         if (currentStock < threshold) {
             try {
                 SimpleMailMessage message = new SimpleMailMessage();
+                message.setFrom(sender);
                 message.setTo(recipient);
                 message.setSubject("⚠️ Low Stock Alert: " + productName);
                 message.setText(
