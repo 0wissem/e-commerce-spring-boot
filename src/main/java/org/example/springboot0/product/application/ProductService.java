@@ -1,8 +1,8 @@
 package org.example.springboot0.product.application;
 
 import org.example.springboot0.category.domain.ICategoryRepository;
-import org.example.springboot0.notification.application.StockEventProducer;
-import org.example.springboot0.notification.application.StockUpdatedEvent;
+import org.example.springboot0.product.domain.IStockEventPublisher;
+import org.example.springboot0.product.domain.StockUpdatedEvent;
 import org.example.springboot0.product.application.dto.ProductRequest;
 import org.example.springboot0.product.application.dto.ProductResponse;
 import org.example.springboot0.product.application.dto.ProductSearchRequest;
@@ -23,16 +23,16 @@ public class ProductService implements IProductService {
     private final IProductRepository productRepository;
     private final ICategoryRepository categoryRepository;
     private final ProductMapper productMapper;
-    private final StockEventProducer stockEventProducer;
+    private final IStockEventPublisher stockEventPublisher;
 
     public ProductService(IProductRepository productRepository,
                           ICategoryRepository categoryRepository,
                           ProductMapper productMapper,
-                          StockEventProducer stockEventProducer) {
+                          IStockEventPublisher stockEventPublisher) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.productMapper = productMapper;
-        this.stockEventProducer = stockEventProducer;
+        this.stockEventPublisher = stockEventPublisher;
     }
 
     @Override
@@ -84,7 +84,7 @@ public class ProductService implements IProductService {
             product.setCategories(categoryRepository.findAllByIds(request.categoryIds()));
         }
         ProductResponse response = productMapper.toResponse(productRepository.save(product));
-        stockEventProducer.publish(new StockUpdatedEvent(product.getName(), product.getStockQuantity()));
+        stockEventPublisher.publish(new StockUpdatedEvent(product.getId(), product.getName(), product.getStockQuantity()));
         return response;
     }
 
