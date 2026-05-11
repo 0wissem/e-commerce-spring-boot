@@ -6,8 +6,8 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.example.springboot0.notification.application.StockEventProducer;
-import org.example.springboot0.notification.application.StockUpdatedEvent;
+import org.example.springboot0.notification.infrastructure.KafkaStockEventPublisher;
+import org.example.springboot0.product.domain.StockUpdatedEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,7 +46,7 @@ public class KafkaConfig {
 
     @Bean
     public NewTopic stockUpdatedTopic() {
-        return TopicBuilder.name(StockEventProducer.TOPIC).partitions(1).replicas(1).build();
+        return TopicBuilder.name(KafkaStockEventPublisher.TOPIC).partitions(1).replicas(1).build();
     }
 
     @Bean
