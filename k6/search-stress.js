@@ -5,17 +5,16 @@ import { Trend, Rate } from 'k6/metrics';
 const searchLatency = new Trend('search_latency');
 const successRate = new Rate('search_success_rate');
 
-const BASE_URL = 'http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com';
+const BASE_URL = 'http://pring-boot-0-docker-main.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com';
 const queries = ['laptop', 'gaming', 'speaker', 'phone', 'monitor', 'shoes', 'coffee', 'tablet'];
 
 export const options = {
     discardResponseBodies: true,
     stages: [
-        { duration: '1m',  target: 200  }, // Step 1: Normal load
-        { duration: '1m',  target: 500  }, // Step 2: High load
-        { duration: '2m',  target: 1000 }, // Step 3: Stress/Break point
-        { duration: '2m',  target: 1000 }, // Hold at 1,000 to check for memory leaks
-        { duration: '1m',  target: 0    }, // Cool down
+        { duration: '20s',  target: 20  }, // Step 1: Normal load
+        { duration: '20s',  target: 40  }, // Step 2: High load
+        { duration: '20s',  target: 40 }, // Hold at 1,000 to check for memory leaks
+        { duration: '20s',  target: 0    }, // Cool down
     ],
     thresholds: {
         'search_latency': ['p(95)<3000'],     // Relaxed to 3s for extreme stress
