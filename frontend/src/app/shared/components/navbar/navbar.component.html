@@ -1,0 +1,32 @@
+<nav class="text-white px-6 py-3.5 flex items-center justify-between" style="background:#0e1726">
+  <div class="flex items-center gap-8">
+    <a routerLink="/products" class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#ea6500">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+        </svg>
+      </div>
+      <span class="font-bold text-base tracking-tight">ShopApp</span>
+    </a>
+    <div class="flex items-center gap-1">
+      <a routerLink="/products" routerLinkActive="text-white bg-white/10" class="text-slate-300 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg text-sm transition font-medium">Products</a>
+      @if (auth.isLoggedIn()) {
+        <a routerLink="/orders" routerLinkActive="text-white bg-white/10" class="text-slate-300 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg text-sm transition font-medium">My Orders</a>
+      }
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3">
+    @if (auth.isLoggedIn()) {
+      <div class="flex items-center gap-2 pl-3 border-l border-white/10">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background:#ea6500">
+          {{ auth.getRole()?.[0] ?? 'U' }}
+        </div>
+        <button (click)="auth.logout()" class="text-slate-300 hover:text-white text-sm transition font-medium">Logout</button>
+      </div>
+    } @else {
+      <a routerLink="/auth/login" class="text-slate-300 hover:text-white text-sm transition font-medium">Login</a>
+      <a routerLink="/auth/register" class="text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition" style="background:#ea6500">Register</a>
+    }
+  </div>
+</nav>

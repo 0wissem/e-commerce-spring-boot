@@ -1,0 +1,34 @@
+<div class="bg-white rounded-2xl border border-slate-100 p-4 flex flex-col gap-3 cursor-pointer hover:-translate-y-0.5 transition-all duration-200" style="box-shadow:0 1px 3px rgba(0,0,0,0.07)">
+  <div class="flex items-start justify-between">
+    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-600">
+      {{ product.categories[0]?.name ?? 'Uncategorized' }}
+    </span>
+    @if (product.stockQuantity === 0) {
+      <span class="text-xs text-red-500 font-medium">Out of stock</span>
+    } @else if (product.stockQuantity < 10) {
+      <span class="text-xs text-amber-500 font-medium">Low stock</span>
+    }
+  </div>
+
+  <div class="w-full h-28 bg-slate-50 rounded-xl flex items-center justify-center">
+    <svg class="w-14 h-14 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+    </svg>
+  </div>
+
+  <h3 class="font-semibold text-slate-800 text-sm leading-snug">{{ product.name }}</h3>
+
+  <div class="mt-auto flex items-center justify-between pt-1">
+    <div class="flex flex-col">
+      <span class="text-base font-bold text-slate-900">{{ product.finalPrice | number:'1.2-2' }} $</span>
+      @if (product.finalPrice !== product.price) {
+        <span class="text-xs text-slate-400 line-through">{{ product.price | number:'1.2-2' }} $</span>
+      }
+    </div>
+    <a [routerLink]="['/products', product.id]"
+       class="text-xs text-white font-semibold px-3 py-1.5 rounded-lg transition"
+       style="background:#ea6500">
+      View
+    </a>
+  </div>
+</div>
