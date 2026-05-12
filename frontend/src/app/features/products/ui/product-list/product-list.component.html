@@ -1,0 +1,80 @@
+<div class="max-w-7xl mx-auto px-4 py-6">
+
+  <!-- Search bar -->
+  <div class="bg-white rounded-2xl border border-slate-100 p-5 mb-6 flex flex-wrap gap-3 items-end" style="box-shadow:0 1px 3px rgba(0,0,0,0.07)">
+    <div class="flex-1 min-w-52">
+      <label class="text-xs font-medium text-slate-500 mb-1.5 block">Search products</label>
+      <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input [(ngModel)]="query" (keyup.enter)="search()" placeholder="laptop, gaming, speaker..."
+               class="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:bg-white focus:outline-none transition" />
+      </div>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500 mb-1.5 block">Min price</label>
+      <input [(ngModel)]="minPrice" type="number" placeholder="0"
+             class="w-28 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:outline-none transition" />
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500 mb-1.5 block">Max price</label>
+      <input [(ngModel)]="maxPrice" type="number" placeholder="9999"
+             class="w-28 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:outline-none transition" />
+    </div>
+    <label class="flex items-center gap-2 cursor-pointer pb-2.5">
+      <input [(ngModel)]="inStock" type="checkbox" class="accent-orange-600 w-4 h-4" />
+      <span class="text-sm text-slate-600 font-medium">In stock only</span>
+    </label>
+    <button (click)="search()" class="text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2" style="background:#ea6500">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      Search
+    </button>
+  </div>
+
+  <!-- Results count -->
+  <p class="text-sm text-slate-500 mb-4"><strong class="text-slate-800 font-semibold">{{ totalElements | number }}</strong> products found</p>
+
+  <!-- Loading skeletons -->
+  @if (loading) {
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      @for (i of [1,2,3,4,5,6,7,8]; track i) {
+        <div class="bg-white rounded-2xl border border-slate-100 p-4 flex flex-col gap-3">
+          <div class="h-4 w-16 rounded-full bg-slate-100 animate-pulse"></div>
+          <div class="h-28 w-full rounded-xl bg-slate-100 animate-pulse"></div>
+          <div class="h-4 w-3/4 rounded bg-slate-100 animate-pulse"></div>
+          <div class="flex justify-between mt-auto">
+            <div class="h-5 w-20 rounded bg-slate-100 animate-pulse"></div>
+            <div class="h-7 w-14 rounded-lg bg-slate-100 animate-pulse"></div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Grid -->
+  @if (!loading) {
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      @for (product of products; track product.id) {
+        <app-product-card [product]="product" />
+      }
+    </div>
+  }
+
+  <!-- Pagination -->
+  @if (totalPages > 1) {
+    <div class="flex items-center justify-center gap-2 mt-8">
+      <button (click)="prevPage()" [disabled]="page === 0"
+              class="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-400 text-sm disabled:opacity-40 hover:border-orange-300 transition flex items-center justify-center">
+        ‹
+      </button>
+      <span class="px-4 py-2 text-sm text-slate-600">Page <strong class="text-slate-800">{{ page + 1 }}</strong> of {{ totalPages }}</span>
+      <button (click)="nextPage()" [disabled]="page === totalPages - 1"
+              class="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-400 text-sm disabled:opacity-40 hover:border-orange-300 transition flex items-center justify-center">
+        ›
+      </button>
+    </div>
+  }
+</div>
