@@ -34,6 +34,7 @@ src/main/java/org/example/springboot0/
 
 ## Tech Stack
 
+### Backend
 | Layer | Technology |
 |---|---|
 | Language | Java 17 |
@@ -47,6 +48,15 @@ src/main/java/org/example/springboot0/
 | Deployment | AWS Elastic Beanstalk |
 | CI/CD | GitHub Actions |
 | Load Testing | k6 |
+
+### Frontend
+| Layer | Technology |
+|---|---|
+| Framework | Angular 19 (standalone components) |
+| Styling | Tailwind CSS |
+| Architecture | Clean Architecture + DDD (domain / application / infrastructure / ui) |
+| Hosting | AWS S3 + CloudFront |
+| CI/CD | GitHub Actions (build → S3 sync → CloudFront invalidation) |
 
 ---
 
@@ -83,8 +93,13 @@ src/main/java/org/example/springboot0/
 - **Docker multi-stage build** — optimized image size
 - **AWS ECR** — private Docker image registry
 - **AWS Elastic Beanstalk** — managed Docker environment
-- **GitHub Actions CI/CD** — on push to `dev` or `master`, builds Docker image, pushes to ECR, deploys to EB
+- **AWS S3 + CloudFront** — frontend static hosting with CDN and cache invalidation on each deploy
+- **GitHub Actions CI/CD** — two pipelines:
+  - Backend: push to `dev`/`master` → build Docker image → push to ECR → deploy to Elastic Beanstalk
+  - Frontend: push to `dev`/`master` (changes in `frontend/`) → build Angular → sync to S3 → invalidate CloudFront
 - **Custom IAM role** (`eb-ec2-ecr-pull-role`) — EC2 instance profile with ECR read permissions
+- **Least-privilege IAM for CI** — `github-actions` user has only the permissions required per pipeline step (S3 sync + CloudFront invalidation, no broader access)
+- **CORS** — configured in Spring Boot to allow requests from the Angular frontend
 
 ### Git Branching Strategy
 - `master` — stable, production deployments
@@ -142,14 +157,17 @@ Run the exact same k6 stress test against the microservices architecture. Produc
 ## Running Locally
 
 ```bash
-# Dev profile (H2 in-memory database)
+# Backend — dev profile (H2 in-memory database)
 ./mvnw spring-boot:run
 
-# Build Docker image
+# Backend — build and run with Docker
 docker build -t spring-boot-0 .
-
-# Run with Docker
 docker run -p 8080:8080 spring-boot-0
+
+# Frontend — dev server (http://localhost:4200)
+cd frontend
+npm install
+npm start
 ```
 
 ## API Endpoints
@@ -168,3 +186,35 @@ docker run -p 8080:8080 spring-boot-0
 | POST | `/api/customers` | Create customer |
 | GET | `/api/categories` | List categories |
 | POST | `/api/categories` | Create category |
+
+---
+
+## Frontend
+
+The Angular app lives in `frontend/` and follows the same Clean Architecture layers as the backend.
+
+### Feature Modules
+
+| Feature | Status | Description |
+|---|---|---|
+| Products | ✅ | List with search/filter/pagination, detail page with add-to-cart |
+| Cart | ✅ | In-memory cart with quantity controls, item count badge in navbar |
+| Orders | ✅ | Order history with status badges, paginated |
+| Auth | ✅ | Login / Register, JWT stored in localStorage, auth interceptor |
+
+### Architecture
+
+```
+frontend/src/app/
+├── core/
+│   ├── guards/         # Auth guard (protects /orders and /cart)
+│   └── interceptors/   # Attaches Bearer token + handles 401 redirect
+├── features/
+│   ├── auth/           # domain / application / infrastructure / ui
+│   ├── products/       # domain / application / infrastructure / ui
+│   ├── orders/         # domain / application / infrastructure / ui
+│   └── cart/           # domain / application / ui
+└── shared/
+    ├── components/     # Navbar (with cart badge), Toast notifications
+    └── services/       # ToastService
+```
