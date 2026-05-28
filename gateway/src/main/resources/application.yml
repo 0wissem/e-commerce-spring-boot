@@ -14,4 +14,4 @@ management:
     health:
       show-details: always
       probes:
-        enabled: true
+        enabled: false
