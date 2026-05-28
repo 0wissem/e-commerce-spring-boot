@@ -1,5 +1,7 @@
 package org.example.springboot0.product.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.springboot0.category.domain.ICategoryRepository;
 import org.example.springboot0.product.domain.IStockEventPublisher;
 import org.example.springboot0.product.domain.StockUpdatedEvent;
@@ -9,12 +11,16 @@ import org.example.springboot0.product.application.dto.ProductSearchRequest;
 import org.example.springboot0.product.domain.IProductRepository;
 import org.example.springboot0.product.domain.Product;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
+import org.example.springboot0.shared.outbox.domain.IOutboxEventRepository;
+import org.example.springboot0.shared.outbox.domain.OutboxEvent;
 import org.example.springboot0.shared.response.PageResponse;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -24,15 +30,21 @@ public class ProductService implements IProductService {
     private final ICategoryRepository categoryRepository;
     private final ProductMapper productMapper;
     private final IStockEventPublisher stockEventPublisher;
+    private final IOutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
     public ProductService(IProductRepository productRepository,
                           ICategoryRepository categoryRepository,
                           ProductMapper productMapper,
-                          IStockEventPublisher stockEventPublisher) {
+                          IStockEventPublisher stockEventPublisher,
+                          IOutboxEventRepository outboxEventRepository,
+                          ObjectMapper objectMapper) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.productMapper = productMapper;
         this.stockEventPublisher = stockEventPublisher;
+        this.outboxEventRepository = outboxEventRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -70,7 +82,9 @@ public class ProductService implements IProductService {
         if (request.categoryIds() != null && !request.categoryIds().isEmpty()) {
             product.setCategories(categoryRepository.findAllByIds(request.categoryIds()));
         }
-        return productMapper.toResponse(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        saveOutboxEvent("PRODUCT_CREATED", saved);
+        return productMapper.toResponse(saved);
     }
 
     @Override
@@ -83,9 +97,10 @@ public class ProductService implements IProductService {
         if (request.categoryIds() != null) {
             product.setCategories(categoryRepository.findAllByIds(request.categoryIds()));
         }
-        ProductResponse response = productMapper.toResponse(productRepository.save(product));
-        stockEventPublisher.publish(new StockUpdatedEvent(product.getId(), product.getName(), product.getStockQuantity()));
-        return response;
+        Product saved = productRepository.save(product);
+        stockEventPublisher.publish(new StockUpdatedEvent(saved.getId(), saved.getName(), saved.getStockQuantity()));
+        saveOutboxEvent("PRODUCT_UPDATED", saved);
+        return productMapper.toResponse(saved);
     }
 
     @Override
@@ -94,6 +109,24 @@ public class ProductService implements IProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
         product.setDeletedAt(java.time.LocalDateTime.now());
         productRepository.save(product);
+        saveOutboxEvent("PRODUCT_DELETED", product);
+    }
+
+    private void saveOutboxEvent(String eventType, Product product) {
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "eventId", UUID.randomUUID().toString(),
+                    "eventType", eventType,
+                    "source", "monolith",
+                    "productId", product.getId(),
+                    "name", product.getName(),
+                    "price", product.getPrice(),
+                    "stockQuantity", product.getStockQuantity()
+            ));
+            outboxEventRepository.save(new OutboxEvent(UUID.randomUUID().toString(), eventType, "monolith", payload));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize outbox event", e);
+        }
     }
 
     @Override
