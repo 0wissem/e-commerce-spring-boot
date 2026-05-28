@@ -31,10 +31,14 @@ public class OutboxPublisher {
     public void publishPendingEvents() {
         List<OutboxEvent> pending = outboxRepository.findPending();
         for (OutboxEvent event : pending) {
-            kafkaTemplate.send(OutboxKafkaConfig.TOPIC, event.getId(), event.getPayload());
-            event.markSent();
-            outboxRepository.save(event);
-            log.info("Published outbox event: {} - {}", event.getEventType(), event.getId());
+            try {
+                kafkaTemplate.send(OutboxKafkaConfig.TOPIC, event.getId(), event.getPayload()).get();
+                event.markSent();
+                outboxRepository.save(event);
+                log.info("Published outbox event: {} - {}", event.getEventType(), event.getId());
+            } catch (Exception e) {
+                log.error("Failed to publish outbox event: {} - {}", event.getEventType(), event.getId(), e);
+            }
         }
     }
 }

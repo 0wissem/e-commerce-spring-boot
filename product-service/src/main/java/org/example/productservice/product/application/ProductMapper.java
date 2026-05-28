@@ -6,6 +6,7 @@ import org.example.productservice.product.domain.Product;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -26,6 +27,6 @@ public class ProductMapper {
     }
 
     public Product toDomain(ProductRequest request) {
-        return new Product(null, request.name(), request.price(), request.stockQuantity());
+        return new Product(UUID.randomUUID().toString(), request.name(), request.price(), request.stockQuantity());
     }
 }
