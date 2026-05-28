@@ -5,6 +5,10 @@ on:
     branches:
       - master
       - dev
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'Dockerfile'
 
 jobs:
   build-and-deploy:
@@ -62,4 +66,3 @@ jobs:
           version_label: ${{ github.sha }}
           deployment_package: Dockerrun.aws.json
           use_existing_version_if_available: true
-          wait_interval: 15
