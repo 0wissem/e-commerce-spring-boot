@@ -1,5 +1,7 @@
 package org.example.gateway;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -22,6 +24,8 @@ import java.util.Random;
 @Component
 public class WeightedRoutingFilter implements GlobalFilter, Ordered {
 
+    private static final Logger log = LoggerFactory.getLogger(WeightedRoutingFilter.class);
+
     @Value("${PRODUCT_SERVICE_WEIGHT:1}")
     private int productServiceWeight;
 
@@ -43,9 +47,14 @@ public class WeightedRoutingFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         if (monolithRoute != null) {
             Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
-            if (route != null && "product-service".equals(route.getId())
-                    && random.nextInt(100) >= productServiceWeight) {
-                exchange.getAttributes().put(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR, monolithRoute);
+            if (route != null && "product-service".equals(route.getId())) {
+                String path = exchange.getRequest().getURI().getPath();
+                if (random.nextInt(100) >= productServiceWeight) {
+                    exchange.getAttributes().put(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR, monolithRoute);
+                    log.info("ROUTE {} -> monolith (weight={}%)", path, productServiceWeight);
+                } else {
+                    log.info("ROUTE {} -> product-service (weight={}%)", path, productServiceWeight);
+                }
             }
         }
         return chain.filter(exchange);
