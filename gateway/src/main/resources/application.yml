@@ -4,24 +4,14 @@ server:
 spring:
   application:
     name: gateway
-  cloud:
-    gateway:
-      routes:
-        - id: product-service
-          uri: ${PRODUCT_SERVICE_URL:http://localhost:8081}
-          predicates:
-            - Path=/api/products/**,/api/categories/**
-
-        - id: monolith
-          uri: ${MONOLITH_URL:http://localhost:8080}
-          predicates:
-            - Path=/api/**
 
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,gateway
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
