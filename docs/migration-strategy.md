@@ -300,54 +300,60 @@ This does not exist yet in the project. It must be built first.
 ## Current State of the Project
 
 ```
-┌─────────────────────┬──────────────┬──────────────────────────────┐
-│ Component           │ Status       │ Gap                          │
-├─────────────────────┼──────────────┼──────────────────────────────┤
-│ product-service     │ ✅ Deployed  │ Empty DB, no sync            │
-│ Dedicated RDS       │ ✅ Running   │ No replication               │
-│ Kafka (Confluent)   │ ✅ Configured│ NoOpPublisher — does nothing │
-│ API Gateway         │ ❌ Missing   │ Cannot route traffic         │
-│ Outbox Pattern      │ ❌ Partial   │ Interface only, no impl      │
-│ Debezium / CDC      │ ❌ Missing   │ Not started                  │
-└─────────────────────┴──────────────┴──────────────────────────────┘
+┌──────────────────────────────┬──────────────┬───────────────────────────────────────────┐
+│ Component                    │ Status       │ Gap                                       │
+├──────────────────────────────┼──────────────┼───────────────────────────────────────────┤
+│ product-service              │ ✅ Deployed  │ —                                         │
+│ Dedicated RDS                │ ✅ Running   │ —                                         │
+│ Kafka (Confluent)            │ ✅ Configured│ —                                         │
+│ API Gateway                  │ ✅ Deployed  │ Clients not yet pointed to gateway        │
+│ Outbox Pattern (monolith)    │ ✅ Done      │ —                                         │
+│ Kafka consumer (product-svc) │ ✅ Done      │ —                                         │
+│ Debezium / CDC               │ ❌ Rejected  │ Not needed — Option B chosen              │
+└──────────────────────────────┴──────────────┴───────────────────────────────────────────┘
 ```
 
 ---
 
-## Recommended Path — Option A then Option B
+## Recommended Path — Option B (chosen)
 
 ```
-TODAY                PHASE 1              PHASE 2              DONE
+PHASE 1 ✅           PHASE 2 ✅            PHASE 3 ← HERE       PHASE 4
   │                     │                    │                   │
   ▼                     ▼                    ▼                   ▼
 
-product-service    Build Gateway       Implement Outbox    Route 100%
-deployed but  ──►  + point both   ──►  + separate DBs  ──► to product-
-no traffic         services to         + real Kafka         service
-                   shared DB           publisher
-                   + route 1%
+Build Gateway       Implement Kafka     Route traffic       Clean up
++ deploy on    ──►  consumer in    ──►  1% → 100%      ──► monolith
+  own EB env        product-service     via gateway         product code
++ Outbox in         + validate sync
+  monolith
 ```
 
-### Phase 1 — Shared DB + Gateway
-1. Point product-service to the monolith's RDS
-2. Build and deploy Spring Cloud Gateway
-3. Route 1% of product traffic to product-service
-4. Validate: same data, same behavior
+### Phase 1 — Gateway + Outbox ✅ Done
+1. ~~Build and deploy Spring Cloud Gateway~~ → deployed at `Gateway-env`
+2. ~~Implement Outbox Pattern in the monolith~~ → done (V14 migration + `OutboxPublisher`)
+3. ~~Validate gateway health and routing~~ → `/api/products/**` and `/api/categories/**` route to `product-service`
 
-### Phase 2 — Real Sync + DB Separation
-1. Implement Outbox Pattern in the monolith
-2. Implement Kafka consumer in product-service
-3. Switch product-service back to its own RDS
-4. Validate: write via monolith, read via product-service → data matches
+### Phase 2 — Kafka consumer in product-service ✅ Done
+1. ~~Implement Kafka consumer in `product-service` to receive `product.events` topic~~
+2. ~~Apply incoming events to the product-service DB~~
+3. ~~Validate: write via monolith → data appears in product-service DB~~
 
-### Phase 3 — Progressive increase
-1. 1% → 10% → 50% → 100%
-2. Monitor at each step
+**Implementation notes:**
+- Spring Boot 4.x does not auto-configure `@EnableKafka` — must be added explicitly via a `@Configuration` class
+- `KafkaAdmin` (auto-configured) blocks startup by trying to connect to the broker; fixed with an explicit `KafkaConsumerConfig` that owns `ConsumerFactory` + `ConcurrentKafkaListenerContainerFactory` without creating `KafkaAdmin`, and excluded `KafkaAutoConfiguration`
+- `@GeneratedValue(strategy = GenerationType.UUID)` on the `Product` entity was silently overwriting the monolith's product ID on every `save()` (Hibernate 7 behaviour); fixed by removing `@GeneratedValue` and generating UUIDs in the application layer (`ProductMapper.toDomain()`)
+- `OutboxPublisher` must use `.get()` on the Kafka send future to block until broker acknowledgment — without it, events are marked SENT before delivery is confirmed and are never retried on failure
+
+### Phase 3 — Progressive traffic increase ← current
+1. Point clients (frontend, external) to the gateway URL instead of the monolith directly
+2. Start at 1% weighted routing, monitor, increase: 1% → 10% → 50% → 100%
+3. At 100%, product-service becomes the authoritative source
 
 ### Phase 4 — Clean up
 1. Remove product code from monolith
 2. Remove product tables from monolith DB
-3. Decommission sync code
+3. Decommission outbox sync code
 
 ---
 
@@ -391,9 +397,9 @@ Deploying the Gateway on the same EB as the monolith was rejected — port confl
 **Chosen: Gateway gets its own EB environment.**
 
 ```
-EB: spring-boot-0        → Monolith       (port 8080)
-EB: Product-service-env  → product-service (port 8081)
-EB: gateway-env          → Spring Cloud Gateway  ← to be created
+EB: spring-boot-0        → Monolith        (port 8080) ✅
+EB: Product-service-env  → product-service (port 8081) ✅
+EB: Gateway-env          → Spring Cloud Gateway        ✅
 ```
 
 ---
@@ -419,6 +425,7 @@ At end state, the monolith EB becomes the Gateway EB. The monolith application i
 
 ### Implementation order
 
-1. **Spring Cloud Gateway** — build and deploy first. No traffic routing until sync is in place.
-2. **Outbox Pattern + Kafka** — implement sync between monolith DB and product-service DB.
-3. **Route traffic** — start at 1%, increase progressively once sync is validated.
+1. ~~**Spring Cloud Gateway**~~ — ✅ deployed at `Gateway-env`.
+2. ~~**Outbox Pattern (monolith)**~~ — ✅ implemented, events published to Kafka `product.events` topic.
+3. ~~**Kafka consumer (product-service)**~~ — ✅ done. Events consumed and applied to product-service DB.
+4. **Route traffic** — ← next. Start at 1%, increase progressively once sync is validated.
