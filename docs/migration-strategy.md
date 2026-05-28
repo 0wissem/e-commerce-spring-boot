@@ -306,7 +306,8 @@ This does not exist yet in the project. It must be built first.
 │ product-service              │ ✅ Deployed  │ —                                         │
 │ Dedicated RDS                │ ✅ Running   │ —                                         │
 │ Kafka (Confluent)            │ ✅ Configured│ —                                         │
-│ API Gateway                  │ ✅ Deployed  │ Clients not yet pointed to gateway        │
+│ API Gateway                  │ ✅ Deployed  │ —                                         │
+│ Weighted routing (1%)        │ ✅ Live      │ Increase PRODUCT_SERVICE_WEIGHT to progress│
 │ Outbox Pattern (monolith)    │ ✅ Done      │ —                                         │
 │ Kafka consumer (product-svc) │ ✅ Done      │ —                                         │
 │ Debezium / CDC               │ ❌ Rejected  │ Not needed — Option B chosen              │
@@ -318,7 +319,7 @@ This does not exist yet in the project. It must be built first.
 ## Recommended Path — Option B (chosen)
 
 ```
-PHASE 1 ✅           PHASE 2 ✅            PHASE 3 ← HERE       PHASE 4
+PHASE 1 ✅           PHASE 2 ✅            PHASE 3 ✅            PHASE 4 ← HERE
   │                     │                    │                   │
   ▼                     ▼                    ▼                   ▼
 
@@ -345,10 +346,16 @@ Build Gateway       Implement Kafka     Route traffic       Clean up
 - `@GeneratedValue(strategy = GenerationType.UUID)` on the `Product` entity was silently overwriting the monolith's product ID on every `save()` (Hibernate 7 behaviour); fixed by removing `@GeneratedValue` and generating UUIDs in the application layer (`ProductMapper.toDomain()`)
 - `OutboxPublisher` must use `.get()` on the Kafka send future to block until broker acknowledgment — without it, events are marked SENT before delivery is confirmed and are never retried on failure
 
-### Phase 3 — Progressive traffic increase ← current
-1. Point clients (frontend, external) to the gateway URL instead of the monolith directly
-2. Start at 1% weighted routing, monitor, increase: 1% → 10% → 50% → 100%
+### Phase 3 — Progressive traffic increase ✅ Done
+1. ~~Point clients (frontend, external) to the gateway URL instead of the monolith directly~~
+2. ~~Start at 1% weighted routing, monitor, increase: 1% → 10% → 50% → 100%~~ → currently at 1%, gateway live at `Gateway-env`
 3. At 100%, product-service becomes the authoritative source
+
+**Implementation notes:**
+- Spring Cloud Gateway's built-in `Weight` predicate is broken in Spring Cloud 2024.0.1 — throws 500 at runtime; replaced with a custom `WeightedRoutingFilter` (`GlobalFilter`, order 9999)
+- Filter runs before `RouteToRequestUrlFilter` (order 10000) and switches `GATEWAY_ROUTE_ATTR` from `product-service` to `monolith` based on a random roll against `PRODUCT_SERVICE_WEIGHT` env var
+- `PRODUCT_SERVICE_WEIGHT=1` means 1% to product-service, 99% to monolith; increase via EB env var — no redeployment needed
+- Monolith route requires `MONOLITH_URL` set in Gateway-env EB environment properties (not a default — must be explicitly configured)
 
 ### Phase 4 — Clean up
 1. Remove product code from monolith
@@ -428,4 +435,4 @@ At end state, the monolith EB becomes the Gateway EB. The monolith application i
 1. ~~**Spring Cloud Gateway**~~ — ✅ deployed at `Gateway-env`.
 2. ~~**Outbox Pattern (monolith)**~~ — ✅ implemented, events published to Kafka `product.events` topic.
 3. ~~**Kafka consumer (product-service)**~~ — ✅ done. Events consumed and applied to product-service DB.
-4. **Route traffic** — ← next. Start at 1%, increase progressively once sync is validated.
+4. ~~**Route traffic**~~ — ✅ done. Gateway live, 1% to product-service via `WeightedRoutingFilter`. Increase `PRODUCT_SERVICE_WEIGHT` in EB env to progress.
