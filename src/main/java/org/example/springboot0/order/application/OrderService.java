@@ -8,6 +8,7 @@ import org.example.springboot0.order.application.dto.OrderStatusRequest;
 import org.example.springboot0.order.domain.IOrderRepository;
 import org.example.springboot0.order.domain.Order;
 import org.example.springboot0.order.domain.OrderItem;
+import org.example.springboot0.order.domain.OrderProductSnapshot;
 import org.example.springboot0.order.domain.OrderStatus;
 import org.example.springboot0.product.domain.IProductRepository;
 import org.example.springboot0.product.domain.Product;
@@ -66,14 +67,11 @@ public class OrderService implements IOrderService {
         List<OrderItem> items = request.items().stream().map(itemRequest -> {
             Product product = productRepository.findById(itemRequest.productId())
                     .orElseThrow(() -> new ResourceNotFoundException("Product", itemRequest.productId()));
-            OrderItem item = new OrderItem(
-                    null,
-                    product.getId(),
-                    product.getName(),
-                    itemRequest.quantity(),
-                    product.getPrice()
-            );
-            return item;
+            List<String> categoryNames = product.getCategories().stream()
+                    .map(c -> c.getName())
+                    .toList();
+            OrderProductSnapshot snapshot = new OrderProductSnapshot(product.getName(), product.getPrice(), categoryNames);
+            return new OrderItem(null, product.getId(), product.getName(), itemRequest.quantity(), product.getPrice(), snapshot);
         }).toList();
 
         double totalPrice = items.stream().mapToDouble(OrderItem::getSubtotal).sum();

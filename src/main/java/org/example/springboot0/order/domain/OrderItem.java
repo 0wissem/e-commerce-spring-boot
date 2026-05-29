@@ -1,6 +1,8 @@
 package org.example.springboot0.order.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "order_items")
@@ -26,14 +28,19 @@ public class OrderItem {
     @Column(nullable = false)
     private double unitPrice;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private OrderProductSnapshot productSnapshot;
+
     public OrderItem() {}
 
-    public OrderItem(String id, String productId, String productName, int quantity, double unitPrice) {
+    public OrderItem(String id, String productId, String productName, int quantity, double unitPrice, OrderProductSnapshot productSnapshot) {
         this.id = id;
         this.productId = productId;
         this.productName = productName;
         this.quantity = quantity;
         this.unitPrice = unitPrice;
+        this.productSnapshot = productSnapshot;
     }
 
     public double getSubtotal() {
@@ -57,4 +64,7 @@ public class OrderItem {
 
     public double getUnitPrice() { return unitPrice; }
     public void setUnitPrice(double unitPrice) { this.unitPrice = unitPrice; }
+
+    public OrderProductSnapshot getProductSnapshot() { return productSnapshot; }
+    public void setProductSnapshot(OrderProductSnapshot productSnapshot) { this.productSnapshot = productSnapshot; }
 }
