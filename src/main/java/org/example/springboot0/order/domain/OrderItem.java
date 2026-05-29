@@ -1,8 +1,7 @@
 package org.example.springboot0.order.domain;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.example.springboot0.order.infrastructure.OrderProductSnapshotConverter;
 
 @Entity
 @Table(name = "order_items")
@@ -28,8 +27,8 @@ public class OrderItem {
     @Column(nullable = false)
     private double unitPrice;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
+    @Convert(converter = OrderProductSnapshotConverter.class)
+    @Column(columnDefinition = "text")
     private OrderProductSnapshot productSnapshot;
 
     public OrderItem() {}
