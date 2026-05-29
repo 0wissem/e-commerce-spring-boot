@@ -10,8 +10,7 @@ import org.example.springboot0.order.domain.Order;
 import org.example.springboot0.order.domain.OrderItem;
 import org.example.springboot0.order.domain.OrderProductSnapshot;
 import org.example.springboot0.order.domain.OrderStatus;
-import org.example.springboot0.product.domain.IProductRepository;
-import org.example.springboot0.product.domain.Product;
+import org.example.springboot0.product.infrastructure.ProductServiceClient;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,16 +23,16 @@ public class OrderService implements IOrderService {
 
     private final IOrderRepository orderRepository;
     private final ICustomerRepository customerRepository;
-    private final IProductRepository productRepository;
+    private final ProductServiceClient productServiceClient;
     private final OrderMapper orderMapper;
 
     public OrderService(IOrderRepository orderRepository,
                         ICustomerRepository customerRepository,
-                        IProductRepository productRepository,
+                        ProductServiceClient productServiceClient,
                         OrderMapper orderMapper) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
-        this.productRepository = productRepository;
+        this.productServiceClient = productServiceClient;
         this.orderMapper = orderMapper;
     }
 
@@ -65,13 +64,12 @@ public class OrderService implements IOrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", request.customerId()));
 
         List<OrderItem> items = request.items().stream().map(itemRequest -> {
-            Product product = productRepository.findById(itemRequest.productId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Product", itemRequest.productId()));
-            List<String> categoryNames = product.getCategories().stream()
-                    .map(c -> c.getName())
+            ProductServiceClient.ProductData product = productServiceClient.getById(itemRequest.productId());
+            List<String> categoryNames = product.categories().stream()
+                    .map(ProductServiceClient.CategoryInfo::name)
                     .toList();
-            OrderProductSnapshot snapshot = new OrderProductSnapshot(product.getName(), product.getPrice(), categoryNames);
-            return new OrderItem(null, product.getId(), product.getName(), itemRequest.quantity(), product.getPrice(), snapshot);
+            OrderProductSnapshot snapshot = new OrderProductSnapshot(product.name(), product.price(), categoryNames);
+            return new OrderItem(null, product.id(), product.name(), itemRequest.quantity(), product.price(), snapshot);
         }).toList();
 
         double totalPrice = items.stream().mapToDouble(OrderItem::getSubtotal).sum();
