@@ -18,7 +18,8 @@ public class OrderMapper {
                 item.getProductName(),
                 item.getQuantity(),
                 item.getUnitPrice(),
-                item.getSubtotal()
+                item.getSubtotal(),
+                item.getProductSnapshot()
         );
     }
 
