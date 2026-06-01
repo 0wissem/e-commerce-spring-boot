@@ -114,6 +114,9 @@ public class ProductService implements IProductService {
 
     private void saveOutboxEvent(String eventType, Product product) {
         try {
+            java.util.List<String> categoryNames = product.getCategories().stream()
+                    .map(org.example.springboot0.category.domain.Category::getName)
+                    .toList();
             String payload = objectMapper.writeValueAsString(Map.of(
                     "eventId", UUID.randomUUID().toString(),
                     "eventType", eventType,
@@ -121,7 +124,8 @@ public class ProductService implements IProductService {
                     "productId", product.getId(),
                     "name", product.getName(),
                     "price", product.getPrice(),
-                    "stockQuantity", product.getStockQuantity()
+                    "stockQuantity", product.getStockQuantity(),
+                    "categoryNames", categoryNames
             ));
             outboxEventRepository.save(new OutboxEvent(UUID.randomUUID().toString(), eventType, "monolith", payload));
         } catch (JsonProcessingException e) {

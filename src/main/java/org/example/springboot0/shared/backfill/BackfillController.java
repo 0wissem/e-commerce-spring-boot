@@ -61,6 +61,9 @@ public class BackfillController {
 
     private OutboxEvent buildOutboxEvent(Product product) {
         try {
+            java.util.List<String> categoryNames = product.getCategories().stream()
+                    .map(org.example.springboot0.category.domain.Category::getName)
+                    .toList();
             String payload = objectMapper.writeValueAsString(Map.of(
                     "eventId", UUID.randomUUID().toString(),
                     "eventType", "PRODUCT_CREATED",
@@ -68,7 +71,8 @@ public class BackfillController {
                     "productId", product.getId(),
                     "name", product.getName(),
                     "price", product.getPrice(),
-                    "stockQuantity", product.getStockQuantity()
+                    "stockQuantity", product.getStockQuantity(),
+                    "categoryNames", categoryNames
             ));
             return new OutboxEvent(UUID.randomUUID().toString(), "PRODUCT_CREATED", "monolith", payload);
         } catch (JsonProcessingException e) {
