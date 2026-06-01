@@ -9,6 +9,7 @@ on:
       - 'src/**'
       - 'pom.xml'
       - 'Dockerfile'
+      - '.github/workflows/**'
 
 jobs:
   build-and-deploy:
