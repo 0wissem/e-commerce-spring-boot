@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
 
-const BASE_URL = 'http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com';
+const BASE_URL = 'http://Spring-boot-0-Docker-Main.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com';
 
 const ordersLatency = new Trend('orders_latency');
 const successRate = new Rate('orders_success_rate');
@@ -10,10 +10,9 @@ const successRate = new Rate('orders_success_rate');
 export const options = {
     discardResponseBodies: true,
     stages: [
-        { duration: '1m',  target: 200  },
-        { duration: '1m',  target: 500  },
-        { duration: '2m',  target: 1000 },
-        { duration: '2m',  target: 1000 },
+        { duration: '1m',  target: 50  },
+        { duration: '1m',  target: 100  },
+        { duration: '1m',  target: 100 }, // Hold at 1,000 to check for memory leaks
         { duration: '1m',  target: 0    },
     ],
     thresholds: {

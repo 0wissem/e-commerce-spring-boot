@@ -62,7 +62,7 @@ jobs:
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           region: eu-north-1
           application_name: spring-boot-0
-          environment_name: pring-boot-0-Docker-Main
+          environment_name: Spring-boot-0-Docker-Main
           version_label: ${{ github.sha }}
           deployment_package: Dockerrun.aws.json
           use_existing_version_if_available: true
