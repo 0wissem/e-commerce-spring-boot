@@ -11,6 +11,7 @@ import org.example.springboot0.order.domain.OrderItem;
 import org.example.springboot0.order.domain.OrderProductSnapshot;
 import org.example.springboot0.order.domain.OrderStatus;
 import org.example.springboot0.product.infrastructure.ProductServiceClient;
+import org.example.springboot0.shared.event.CategoryDto;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,10 +66,10 @@ public class OrderService implements IOrderService {
 
         List<OrderItem> items = request.items().stream().map(itemRequest -> {
             ProductServiceClient.ProductData product = productServiceClient.getById(itemRequest.productId());
-            List<String> categoryNames = product.categories().stream()
-                    .map(ProductServiceClient.CategoryInfo::name)
+            List<CategoryDto> categories = product.categories().stream()
+                    .map(c -> new CategoryDto(c.id(), c.name()))
                     .toList();
-            OrderProductSnapshot snapshot = new OrderProductSnapshot(product.name(), product.price(), categoryNames);
+            OrderProductSnapshot snapshot = new OrderProductSnapshot(product.name(), product.price(), categories);
             return new OrderItem(null, product.id(), product.name(), itemRequest.quantity(), product.price(), snapshot);
         }).toList();
 

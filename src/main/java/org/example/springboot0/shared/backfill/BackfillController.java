@@ -19,7 +19,13 @@ public class BackfillController {
 
     @PostMapping("/products")
     public ResponseEntity<Map<String, Object>> backfillProducts() {
-        backfillService.runBackfill();
-        return ResponseEntity.accepted().body(Map.of("status", "backfill started"));
+        backfillService.runProductBackfill();
+        return ResponseEntity.accepted().body(Map.of("status", "product backfill started"));
+    }
+
+    @PostMapping("/orders")
+    public ResponseEntity<Map<String, Object>> backfillOrders() {
+        backfillService.runOrderBackfill();
+        return ResponseEntity.accepted().body(Map.of("status", "order backfill started"));
     }
 }

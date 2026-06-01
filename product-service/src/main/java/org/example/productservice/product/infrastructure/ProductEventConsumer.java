@@ -55,18 +55,17 @@ public class ProductEventConsumer {
     }
 
     private void handleCreated(ProductEventPayload payload) {
-        // idempotent: upsert by monolith product ID
         productRepository.findById(payload.productId()).ifPresentOrElse(
                 existing -> {
                     existing.setName(payload.name());
                     existing.setPrice(payload.price());
                     existing.setStockQuantity(payload.stockQuantity());
-                    syncCategories(existing, payload.categoryNames());
+                    syncCategories(existing, payload.categories());
                     productRepository.save(existing);
                 },
                 () -> {
                     Product product = new Product(payload.productId(), payload.name(), payload.price(), payload.stockQuantity());
-                    syncCategories(product, payload.categoryNames());
+                    syncCategories(product, payload.categories());
                     productRepository.save(product);
                 }
         );
@@ -78,26 +77,25 @@ public class ProductEventConsumer {
                     product.setName(payload.name());
                     product.setPrice(payload.price());
                     product.setStockQuantity(payload.stockQuantity());
-                    syncCategories(product, payload.categoryNames());
+                    syncCategories(product, payload.categories());
                     productRepository.save(product);
                 },
-                // out-of-order: event arrived before CREATED — treat as create
                 () -> handleCreated(payload)
         );
     }
 
-    private void syncCategories(Product product, List<String> names) {
+    private void syncCategories(Product product, List<ProductEventPayload.CategoryDto> dtos) {
         try {
-            product.setCategories(resolveCategories(names));
+            product.setCategories(resolveCategories(dtos));
         } catch (Exception e) {
             log.warn("Category sync failed for product {}, skipping: {}", product.getId(), e.getMessage());
         }
     }
 
-    private Set<Category> resolveCategories(List<String> names) {
-        return names.stream()
-                .map(name -> categoryRepository.findByName(name)
-                        .orElseGet(() -> categoryRepository.save(new Category(null, name, ""))))
+    private Set<Category> resolveCategories(List<ProductEventPayload.CategoryDto> dtos) {
+        return dtos.stream()
+                .map(dto -> categoryRepository.findById(dto.id())
+                        .orElseGet(() -> categoryRepository.save(new Category(dto.id(), dto.name(), ""))))
                 .collect(Collectors.toSet());
     }
 

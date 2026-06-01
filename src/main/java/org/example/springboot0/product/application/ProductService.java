@@ -18,6 +18,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.example.springboot0.shared.event.CategoryDto;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -114,8 +116,8 @@ public class ProductService implements IProductService {
 
     private void saveOutboxEvent(String eventType, Product product) {
         try {
-            java.util.List<String> categoryNames = product.getCategories().stream()
-                    .map(org.example.springboot0.category.domain.Category::getName)
+            List<CategoryDto> categories = product.getCategories().stream()
+                    .map(c -> new CategoryDto(c.getId(), c.getName()))
                     .toList();
             String payload = objectMapper.writeValueAsString(Map.of(
                     "eventId", UUID.randomUUID().toString(),
@@ -125,7 +127,7 @@ public class ProductService implements IProductService {
                     "name", product.getName(),
                     "price", product.getPrice(),
                     "stockQuantity", product.getStockQuantity(),
-                    "categoryNames", categoryNames
+                    "categories", categories
             ));
             outboxEventRepository.save(new OutboxEvent(UUID.randomUUID().toString(), eventType, "monolith", payload));
         } catch (JsonProcessingException e) {
