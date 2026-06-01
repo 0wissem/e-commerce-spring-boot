@@ -2,6 +2,8 @@ package org.example.springboot0.order.infrastructure;
 
 import org.example.springboot0.order.domain.IOrderRepository;
 import org.example.springboot0.order.domain.Order;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +20,9 @@ public class OrderRepositoryAdapter implements IOrderRepository {
 
     @Override
     public List<Order> findAll() { return jpa.findAll(); }
+
+    @Override
+    public Page<Order> findAll(Pageable pageable) { return jpa.findAll(pageable); }
 
     @Override
     public Optional<Order> findById(String id) { return jpa.findById(id); }

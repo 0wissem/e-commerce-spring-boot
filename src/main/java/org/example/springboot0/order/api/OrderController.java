@@ -5,6 +5,7 @@ import org.example.springboot0.order.application.dto.OrderRequest;
 import org.example.springboot0.order.application.dto.OrderResponse;
 import org.example.springboot0.order.application.dto.OrderStatusRequest;
 import org.example.springboot0.shared.response.ApiResponse;
+import org.example.springboot0.shared.response.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +24,10 @@ public class OrderController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<OrderResponse>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.ok(orderService.getAll()));
+    public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(orderService.getAll(page, size)));
     }
 
     @GetMapping("/{id}")

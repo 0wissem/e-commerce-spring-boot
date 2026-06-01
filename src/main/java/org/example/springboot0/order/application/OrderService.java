@@ -13,6 +13,8 @@ import org.example.springboot0.order.domain.OrderStatus;
 import org.example.springboot0.product.infrastructure.ProductServiceClient;
 import org.example.springboot0.shared.event.CategoryDto;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
+import org.example.springboot0.shared.response.PageResponse;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,14 @@ public class OrderService implements IOrderService {
         return orderRepository.findAll().stream()
                 .map(order -> orderMapper.toResponse(order, order.getCustomer().getName()))
                 .toList();
+    }
+
+    @Override
+    public PageResponse<OrderResponse> getAll(int page, int size) {
+        return PageResponse.from(
+                orderRepository.findAll(PageRequest.of(page, size))
+                        .map(order -> orderMapper.toResponse(order, order.getCustomer().getName()))
+        );
     }
 
     public OrderResponse getById(String id) {
