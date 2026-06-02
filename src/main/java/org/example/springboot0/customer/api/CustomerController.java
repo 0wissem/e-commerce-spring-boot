@@ -4,6 +4,7 @@ import org.example.springboot0.customer.application.ICustomerService;
 import org.example.springboot0.customer.application.dto.CustomerRequest;
 import org.example.springboot0.customer.application.dto.CustomerResponse;
 import org.example.springboot0.shared.response.ApiResponse;
+import org.example.springboot0.shared.response.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +23,10 @@ public class CustomerController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<CustomerResponse>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.ok(customerService.getAll()));
+    public ResponseEntity<ApiResponse<PageResponse<CustomerResponse>>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(customerService.getAll(page, size)));
     }
 
     @GetMapping("/{id}")

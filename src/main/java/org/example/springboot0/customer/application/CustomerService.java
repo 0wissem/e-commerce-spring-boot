@@ -5,6 +5,8 @@ import org.example.springboot0.customer.application.dto.CustomerResponse;
 import org.example.springboot0.customer.domain.Customer;
 import org.example.springboot0.customer.domain.ICustomerRepository;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
+import org.example.springboot0.shared.response.PageResponse;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -25,6 +27,14 @@ public class CustomerService implements ICustomerService {
         return customerRepository.findAll().stream()
                 .map(customerMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    public PageResponse<CustomerResponse> getAll(int page, int size) {
+        return PageResponse.from(
+                customerRepository.findAll(PageRequest.of(page, size))
+                        .map(customerMapper::toResponse)
+        );
     }
 
     @Override

@@ -2,6 +2,8 @@ package org.example.springboot0.customer.infrastructure;
 
 import org.example.springboot0.customer.domain.Customer;
 import org.example.springboot0.customer.domain.ICustomerRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +20,9 @@ public class CustomerRepositoryAdapter implements ICustomerRepository {
 
     @Override
     public List<Customer> findAll() { return jpa.findAll(); }
+
+    @Override
+    public Page<Customer> findAll(Pageable pageable) { return jpa.findAll(pageable); }
 
     @Override
     public Optional<Customer> findById(String id) { return jpa.findById(id); }

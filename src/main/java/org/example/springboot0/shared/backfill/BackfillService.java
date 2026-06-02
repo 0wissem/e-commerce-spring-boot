@@ -3,7 +3,6 @@ package org.example.springboot0.shared.backfill;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.springboot0.order.domain.IOrderRepository;
-import org.example.springboot0.order.domain.OrderProductSnapshot;
 import org.example.springboot0.product.domain.IProductRepository;
 import org.example.springboot0.product.domain.Product;
 import org.example.springboot0.shared.event.CategoryDto;
@@ -16,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.util.List;
 import java.util.Map;
@@ -31,15 +31,18 @@ public class BackfillService {
     private final IOutboxEventRepository outboxEventRepository;
     private final IOrderRepository orderRepository;
     private final ObjectMapper objectMapper;
+    private final OrderBackfillProcessor orderBackfillProcessor;
 
     public BackfillService(IProductRepository productRepository,
                            IOutboxEventRepository outboxEventRepository,
                            IOrderRepository orderRepository,
-                           ObjectMapper objectMapper) {
+                           ObjectMapper objectMapper,
+                           OrderBackfillProcessor orderBackfillProcessor) {
         this.productRepository = productRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.orderRepository = orderRepository;
         this.objectMapper = objectMapper;
+        this.orderBackfillProcessor = orderBackfillProcessor;
     }
 
     @Async
@@ -63,28 +66,16 @@ public class BackfillService {
     }
 
     @Async
-    @Transactional
     public void runOrderBackfill() {
-        int total = 0;
-        int skipped = 0;
-
-        for (var order : orderRepository.findAll()) {
-            for (var item : order.getItems()) {
-                var productOpt = productRepository.findById(item.getProductId());
-                if (productOpt.isEmpty()) {
-                    skipped++;
-                    continue;
-                }
-                Product product = productOpt.get();
-                List<CategoryDto> categories = product.getCategories().stream()
-                        .map(c -> new CategoryDto(c.getId(), c.getName()))
-                        .toList();
-                item.setProductSnapshot(new OrderProductSnapshot(product.getName(), product.getPrice(), categories));
-                total++;
-            }
-        }
-
-        log.info("Order backfill complete: {} snapshots updated, {} skipped (product deleted)", total, skipped);
+        int page = 0;
+        int[] totals = {0, 0}; // [updated, skipped]
+        boolean hasNext;
+        do {
+            hasNext = orderBackfillProcessor.processPage(page, PAGE_SIZE, totals);
+            log.info("Order backfill: page {} done ({} updated, {} skipped so far)", page, totals[0], totals[1]);
+            page++;
+        } while (hasNext);
+        log.info("Order backfill complete: {} snapshots updated, {} skipped (product deleted)", totals[0], totals[1]);
     }
 
     private OutboxEvent buildOutboxEvent(Product product) {
