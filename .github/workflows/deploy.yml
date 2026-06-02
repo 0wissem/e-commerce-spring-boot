@@ -70,7 +70,7 @@ jobs:
           PRODUCT_SERVICE_URL: ${{ secrets.PRODUCT_SERVICE_URL }}
         run: |
           STATUS=$(aws elasticbeanstalk describe-environments \
-            --environment-names Spring-boot-0-Docker-Main \
+            --environment-names Dockerized-Monolothic-Env-Prod \
             --query 'Environments[?Status!=`Terminated`] | [0].Status' \
             --output text 2>/dev/null)
 
@@ -106,20 +106,20 @@ jobs:
 
             aws elasticbeanstalk create-environment \
               --application-name spring-boot-0 \
-              --environment-name Spring-boot-0-Docker-Main \
+              --environment-name Dockerized-Monolothic-Env-Prod \
               --solution-stack-name "$STACK" \
               --option-settings file://eb-options.json
 
             aws elasticbeanstalk wait environment-updated \
-              --environment-names Spring-boot-0-Docker-Main
+              --environment-names Dockerized-Monolothic-Env-Prod
 
           elif [ "$STATUS" != "Ready" ]; then
             echo "Environment status is $STATUS — rebuilding..."
             aws elasticbeanstalk rebuild-environment \
-              --environment-name Spring-boot-0-Docker-Main || true
+              --environment-name Dockerized-Monolothic-Env-Prod || true
             sleep 30
             aws elasticbeanstalk wait environment-updated \
-              --environment-names Spring-boot-0-Docker-Main
+              --environment-names Dockerized-Monolothic-Env-Prod
           else
             echo "Environment is Ready — proceeding with deploy."
           fi
@@ -131,7 +131,7 @@ jobs:
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           region: eu-north-1
           application_name: spring-boot-0
-          environment_name: Spring-boot-0-Docker-Main
+          environment_name: Dockerized-Monolothic-Env-Prod
           version_label: ${{ github.sha }}
           deployment_package: Dockerrun.aws.json
           use_existing_version_if_available: true

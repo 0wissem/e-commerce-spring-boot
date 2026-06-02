@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
 
-const BASE_URL = 'http://Spring-boot-0-Docker-Main.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com';
+const BASE_URL = 'http://Dockerized-Monolothic-Env-Prod.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com';
 
 const ordersLatency = new Trend('orders_latency');
 const successRate = new Rate('orders_success_rate');

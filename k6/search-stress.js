@@ -5,7 +5,7 @@ import { Trend, Rate } from 'k6/metrics';
 const searchLatency = new Trend('search_latency');
 const successRate = new Rate('search_success_rate');
 
-const BASE_URL = 'http://Spring-boot-0-Docker-Main.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com';
+const BASE_URL = 'http://Dockerized-Monolothic-Env-Prod.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com';
 const queries = ['laptop', 'gaming', 'speaker', 'phone', 'monitor', 'shoes', 'coffee', 'tablet'];
 
 export const options = {
