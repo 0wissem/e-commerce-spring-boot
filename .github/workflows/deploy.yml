@@ -56,6 +56,20 @@ jobs:
             ]
           }' > Dockerrun.aws.json
 
+      - name: Ensure environment is Ready
+        run: |
+          STATUS=$(aws elasticbeanstalk describe-environments \
+            --environment-names Spring-boot-0-Docker-Main \
+            --query 'Environments[0].Status' --output text)
+          if [ "$STATUS" != "Ready" ]; then
+            echo "Environment status is $STATUS, waiting for Ready..."
+            aws elasticbeanstalk rebuild-environment \
+              --environment-name Spring-boot-0-Docker-Main || true
+            sleep 30
+            aws elasticbeanstalk wait environment-updated \
+              --environment-names Spring-boot-0-Docker-Main
+          fi
+
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
         with:
