@@ -95,6 +95,7 @@ public class ProductEventConsumer {
     private Set<Category> resolveCategories(List<ProductEventPayload.CategoryDto> dtos) {
         return dtos.stream()
                 .map(dto -> categoryRepository.findById(dto.id())
+                        .or(() -> categoryRepository.findByName(dto.name()))
                         .orElseGet(() -> categoryRepository.save(new Category(dto.id(), dto.name(), ""))))
                 .collect(Collectors.toSet());
     }
