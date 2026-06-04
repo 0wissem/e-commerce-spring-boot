@@ -1,0 +1,22 @@
+### Configuration — change BASE_URL to match your running environment
+@BASE_URL = http://localhost:8080
+
+### ─────────────────────────────────────────────────────────
+### 1. Browse first page of orders
+###    Look at each item.productSnapshot: should never be null.
+###    Expected shape: { name, price, categories: [{id, name}] }
+### ─────────────────────────────────────────────────────────
+GET {{BASE_URL}}/api/orders?page=0&size=5
+Accept: application/json
+
+### ─────────────────────────────────────────────────────────
+### 2. Second page — spot-check more items
+### ─────────────────────────────────────────────────────────
+GET {{BASE_URL}}/api/orders?page=1&size=5
+Accept: application/json
+
+### ─────────────────────────────────────────────────────────
+### 3. Deep page — verifies backfill reached rows created long ago
+### ─────────────────────────────────────────────────────────
+GET {{BASE_URL}}/api/orders?page=100&size=5
+Accept: application/json
