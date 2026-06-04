@@ -25,7 +25,8 @@
       "Bash(./mvnw compile *)",
       "Bash(gh run *)",
       "Bash(bash *)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(xargs cat)"
     ]
   }
 }
