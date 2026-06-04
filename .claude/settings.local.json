@@ -4,7 +4,25 @@
       "Bash(curl -s \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?query=laptop&inStock=true&page=0&size=3\")",
       "Bash(python3 -m json.tool)",
       "Bash(curl -sv \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?query=laptop&inStock=true&page=0&size=3\")",
-      "Bash(curl -s \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?categoryId=00000000-0000-0000-0000-000000000006&page=0&size=3\")"
+      "Bash(curl -s \"http://Spring-boot-0-env-docker.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products/search?categoryId=00000000-0000-0000-0000-000000000006&page=0&size=3\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code} \\(%{time_total}s\\)\\\\n' 'http://Dockerized-Monolothic-Env-Prod.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/products?page=0&size=3')",
+      "Bash(curl -s -o /dev/null -w '%{http_code} \\(%{time_total}s\\)\\\\n' 'http://Dockerized-Monolothic-Env-Prod.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/orders?page=0&size=3')",
+      "Bash(curl -s -o /dev/null -w '%{http_code} \\(%{time_total}s\\)\\\\n' 'http://Dockerized-Monolothic-Env-Prod.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/customers?page=0&size=3')",
+      "Bash(curl -s -o /dev/null -w '%{http_code} \\(%{time_total}s\\)\\\\n' http://Dockerized-Monolothic-Env-Prod.eba-vjuzhnjz.eu-north-1.elasticbeanstalk.com/api/categories)",
+      "Bash(curl -s -o /dev/null -w '%{http_code} \\(%{time_total}s\\)\\\\n' 'http://Gateway-env.eba-2qzdybvr.eu-north-1.elasticbeanstalk.com/api/products?page=0&size=3')",
+      "Bash(curl -s -o /dev/null -w '%{http_code} \\(%{time_total}s\\)\\\\n' http://Gateway-env.eba-2qzdybvr.eu-north-1.elasticbeanstalk.com/api/categories)",
+      "Bash(curl -s -o /dev/null -w '%{http_code} \\(%{time_total}s\\)\\\\n' 'http://Gateway-env.eba-2qzdybvr.eu-north-1.elasticbeanstalk.com/api/orders?page=0&size=3')",
+      "Bash(curl -s -o /dev/null -w '%{http_code} \\(%{time_total}s\\)\\\\n' 'http://Gateway-env.eba-2qzdybvr.eu-north-1.elasticbeanstalk.com/api/customers?page=0&size=3')",
+      "Bash(curl -s -o /dev/null -w '%{http_code} \\(%{time_total}s\\)\\\\n' 'http://Gateway-env.eba-2qzdybvr.eu-north-1.elasticbeanstalk.com/api/products/search?query=laptop&page=0&size=5')",
+      "Bash(curl *)",
+      "Bash(python3 -c ' *)",
+      "Bash(git *)",
+      "Bash(chmod +x *)",
+      "Bash(aws elasticbeanstalk describe-environments *)",
+      "Bash(aws --version)",
+      "Bash(rm /Users/wissemks/Desktop/Formation/spring-boot-0/src/main/java/org/example/springboot0/shared/backfill/BackfillController.java /Users/wissemks/Desktop/Formation/spring-boot-0/src/main/java/org/example/springboot0/shared/backfill/BackfillService.java /Users/wissemks/Desktop/Formation/spring-boot-0/src/main/java/org/example/springboot0/shared/backfill/OrderBackfillProcessor.java)",
+      "Bash(rmdir /Users/wissemks/Desktop/Formation/spring-boot-0/src/main/java/org/example/springboot0/shared/backfill)",
+      "Bash(./mvnw compile *)"
     ]
   }
 }

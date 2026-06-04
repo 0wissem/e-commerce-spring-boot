@@ -7,7 +7,7 @@ import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.example.springboot0.notification.infrastructure.KafkaStockEventPublisher;
-import org.example.springboot0.product.domain.StockUpdatedEvent;
+import org.example.springboot0.shared.event.StockUpdatedEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

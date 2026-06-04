@@ -1,10 +1,6 @@
 package org.example.springboot0.category.domain;
 
 import jakarta.persistence.*;
-import org.example.springboot0.product.domain.Product;
-
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "categories")
@@ -13,9 +9,6 @@ public class Category {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-
-    @ManyToMany(mappedBy = "categories")
-    private Set<Product> products = new HashSet<>();
 
     @Column(nullable = false)
     private String name;
@@ -39,7 +32,4 @@ public class Category {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-
-    public Set<Product> getProducts() { return products; }
-    public void setProducts(Set<Product> products) { this.products = products; }
 }

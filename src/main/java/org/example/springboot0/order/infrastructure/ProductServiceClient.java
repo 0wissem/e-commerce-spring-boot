@@ -1,4 +1,4 @@
-package org.example.springboot0.product.infrastructure;
+package org.example.springboot0.order.infrastructure;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;

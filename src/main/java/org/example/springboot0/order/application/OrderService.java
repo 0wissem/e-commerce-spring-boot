@@ -10,7 +10,7 @@ import org.example.springboot0.order.domain.Order;
 import org.example.springboot0.order.domain.OrderItem;
 import org.example.springboot0.order.domain.OrderProductSnapshot;
 import org.example.springboot0.order.domain.OrderStatus;
-import org.example.springboot0.product.infrastructure.ProductServiceClient;
+import org.example.springboot0.order.infrastructure.ProductServiceClient;
 import org.example.springboot0.shared.event.CategoryDto;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
 import org.example.springboot0.shared.response.PageResponse;
