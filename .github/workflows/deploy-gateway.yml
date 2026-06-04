@@ -60,6 +60,8 @@ jobs:
             --environment-name ${{ secrets.GATEWAY_EB_ENV }} \
             --option-settings \
               Namespace=aws:elasticbeanstalk:application:environment,OptionName=PRODUCT_SERVICE_WEIGHT,Value=100
+          aws elasticbeanstalk wait environment-updated \
+            --environment-names ${{ secrets.GATEWAY_EB_ENV }}
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
