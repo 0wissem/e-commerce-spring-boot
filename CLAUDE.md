@@ -22,8 +22,8 @@ It now has three deployable services on AWS Elastic Beanstalk:
 - **product-service** — extracted microservice with its own PostgreSQL RDS
 - **gateway** — Spring Cloud Gateway doing weighted traffic splitting (`PRODUCT_SERVICE_WEIGHT=1` → 1% to product-service, 99% to monolith)
 
-**Current phase: Phase 4** — clean up product code from the monolith. Not yet started. Three concrete steps:
-1. Remove product code (domain/application/infrastructure/api) from monolith
+**Current phase: Phase 4** — clean up product code from the monolith. Three concrete steps:
+1. ✅ Remove product code (domain/application/infrastructure/api) from monolith
 2. Remove product tables from monolith DB (new Flyway migration to drop them)
 3. Decommission the outbox sync code — `OutboxPublisher`, `outbox_events` table, Kafka consumer in product-service
 
