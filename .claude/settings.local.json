@@ -22,7 +22,10 @@
       "Bash(aws --version)",
       "Bash(rm /Users/wissemks/Desktop/Formation/spring-boot-0/src/main/java/org/example/springboot0/shared/backfill/BackfillController.java /Users/wissemks/Desktop/Formation/spring-boot-0/src/main/java/org/example/springboot0/shared/backfill/BackfillService.java /Users/wissemks/Desktop/Formation/spring-boot-0/src/main/java/org/example/springboot0/shared/backfill/OrderBackfillProcessor.java)",
       "Bash(rmdir /Users/wissemks/Desktop/Formation/spring-boot-0/src/main/java/org/example/springboot0/shared/backfill)",
-      "Bash(./mvnw compile *)"
+      "Bash(./mvnw compile *)",
+      "Bash(gh run *)",
+      "Bash(bash *)",
+      "Bash(wait)"
     ]
   }
 }
