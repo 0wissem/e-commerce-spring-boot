@@ -53,6 +53,13 @@ jobs:
             ]
           }' > Dockerrun.aws.json
 
+      - name: Set gateway environment variables
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name ${{ secrets.GATEWAY_EB_ENV }} \
+            --option-settings \
+              Namespace=aws:elasticbeanstalk:application:environment,OptionName=PRODUCT_SERVICE_WEIGHT,Value=100
+
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
         with:
