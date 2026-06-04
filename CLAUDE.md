@@ -18,11 +18,18 @@ Monolith → Load-tested → Proved degradation → Extracted microservice → A
 ```
 
 It now has three deployable services on AWS Elastic Beanstalk:
-- **Monolith** (`spring-boot-0`) — still the source of truth for orders, customers, categories
+- **Monolith** (`spring-boot-0`) — still the source of truth for orders, customers, categories, AND products (until Phase 4 completes)
 - **product-service** — extracted microservice with its own PostgreSQL RDS
-- **gateway** — Spring Cloud Gateway doing weighted traffic splitting (1% → product-service)
+- **gateway** — Spring Cloud Gateway doing weighted traffic splitting (`PRODUCT_SERVICE_WEIGHT=1` → 1% to product-service, 99% to monolith)
 
-**Current phase: Phase 4** — clean up product code from the monolith. Not yet started.
+**Current phase: Phase 4** — clean up product code from the monolith. Not yet started. Three concrete steps:
+1. Remove product code (domain/application/infrastructure/api) from monolith
+2. Remove product tables from monolith DB (new Flyway migration to drop them)
+3. Decommission the outbox sync code — `OutboxPublisher`, `outbox_events` table, Kafka consumer in product-service
+
+> **Keep this file in sync as Phase 4 progresses.** Mark each step done inline. Without this, future sessions will assume the monolith still owns products even after cleanup.
+
+**Long-term vision (Strangler Fig):** Every domain gets extracted progressively. When the last domain is out, the monolith EB becomes the gateway EB and the monolith application is decommissioned. Order of extraction after product: order-service → customer-service.
 
 ---
 
@@ -86,6 +93,20 @@ Two pipelines: backend (Docker → ECR → Elastic Beanstalk) and frontend (Angu
 - Why `@GeneratedValue(strategy = UUID)` was removed in product-service (Hibernate 7 silently overwrote monolith IDs on save)
 - Why `OutboxPublisher` uses `.get()` to block — async send would mark events SENT before delivery
 - Why `@EnableKafka` must be explicit in Spring Boot 4.x (no auto-config)
+
+---
+
+## Frontend Context
+
+The Angular app lives in `frontend/` and follows the same Clean Architecture layers as the backend.
+
+Key features already built: Products (search/filter/pagination), Cart (in-memory, item badge in navbar), Orders (history with status badges), Auth (Login/Register with JWT stored in localStorage).
+
+Auth wiring:
+- JWT stored in `localStorage` after login
+- `AuthInterceptor` attaches `Bearer` token to every outgoing request
+- `AuthGuard` protects `/orders` and `/cart` routes
+- On 401 response, interceptor redirects to login
 
 ---
 
