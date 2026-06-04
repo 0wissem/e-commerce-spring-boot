@@ -14,22 +14,22 @@ This project is his learning ground. Every conversation is a coaching session, n
 An e-commerce Spring Boot app that has deliberately evolved through the full journey:
 
 ```
-Monolith → Load-tested → Proved degradation → Extracted microservice → API Gateway → Outbox + Kafka → Weighted routing
+Monolith → Load-tested → Proved degradation → Extracted microservice → API Gateway → Outbox + Kafka → Weighted routing → Phase 4 cleanup
 ```
 
 It now has three deployable services on AWS Elastic Beanstalk:
-- **Monolith** (`spring-boot-0`) — still the source of truth for orders, customers, categories, AND products (until Phase 4 completes)
-- **product-service** — extracted microservice with its own PostgreSQL RDS
-- **gateway** — Spring Cloud Gateway doing weighted traffic splitting (`PRODUCT_SERVICE_WEIGHT=1` → 1% to product-service, 99% to monolith)
+- **Monolith** (`spring-boot-0`) — owns **orders** and **customers** only. Products and categories are fully gone from its codebase and DB.
+- **product-service** — owns **products** and **categories**, with its own PostgreSQL RDS
+- **gateway** — Spring Cloud Gateway routing `/api/products/**` and `/api/categories/**` to product-service (weight=100%), everything else to monolith
 
-**Current phase: Phase 4 — ✅ COMPLETE**
+**Phase 4 — ✅ COMPLETE**
 1. ✅ Remove product code (domain/application/infrastructure/api) from monolith
-2. ✅ Remove product tables from monolith DB (V20 drops `products` + `product_categories`)
-3. ✅ Decommission the outbox sync code — `OutboxPublisher`, `outbox_events` table (V21), Kafka consumer in product-service
+2. ✅ Remove product + product_categories tables from monolith DB (V20)
+3. ✅ Decommission outbox sync — `OutboxPublisher`, `outbox_events` table (V21), Kafka consumer in product-service
+4. ✅ Remove category code from monolith — already served by product-service via gateway
+5. ✅ Drop categories table from monolith DB (V22)
 
-> **Keep this file in sync as Phase 4 progresses.** Mark each step done inline. Without this, future sessions will assume the monolith still owns products even after cleanup.
-
-**Long-term vision (Strangler Fig):** Every domain gets extracted progressively. When the last domain is out, the monolith EB becomes the gateway EB and the monolith application is decommissioned. Order of extraction after product: order-service → customer-service.
+**Long-term vision (Strangler Fig):** Every domain gets extracted progressively. When the last domain is out, the monolith EB becomes the gateway EB and the monolith is decommissioned. Next extraction: **order-service → customer-service**.
 
 ---
 
@@ -48,40 +48,44 @@ Every domain module follows: `domain/` → `application/` → `infrastructure/` 
 **Frontend analogy:** domain = business logic hook, application = service layer, infrastructure = API call layer, api = the route handler.
 
 ### 2. Repository Pattern (Port/Adapter split)
-The domain defines `IProductRepository` (the port). The infrastructure implements `ProductRepositoryAdapter` wrapping `ProductJpaRepository` (the adapter). The service never touches JPA directly.
+The domain defines `IOrderRepository` (the port). The infrastructure implements `OrderRepositoryAdapter` wrapping `OrderJpaRepository` (the adapter). The service never touches JPA directly.
 
 ### 3. DTO / Mapper Pattern
-`ProductRequest` (input), `ProductResponse` (output), `ProductMapper` translates between HTTP and domain. The domain entity never leaks to the HTTP layer.
+`OrderRequest` (input), `OrderResponse` (output), `OrderMapper` translates between HTTP and domain. The domain entity never leaks to the HTTP layer.
 
 ### 4. Soft Delete
-`@SQLRestriction("deleted_at IS NULL")` on `Product` — Hibernate silently adds this condition to every query. No hard deletes. Products are set `deletedAt = now()`.
+`@SQLRestriction("deleted_at IS NULL")` on `Product` in product-service — Hibernate silently adds this condition to every query. No hard deletes. Products are set `deletedAt = now()`.
 
 ### 5. Flyway Database Migrations
 Versioned SQL files in `src/main/resources/db/migration/`. Applied in order at startup. Never modify an applied migration — always add a new version.
+Monolith is at V22. Product-service is at V7.
 
 ### 6. Spring Profiles
 `dev` = H2 in-memory (no setup), `prod` = AWS RDS PostgreSQL. Configured in `application-dev.properties` / `application-prod.properties`.
 
 ### 7. Full-Text Search (PostgreSQL tsvector + GIN index)
-`V8` migration adds a `tsvector` column and GIN index on products. The query uses `@Query` with native SQL `@@` operator. This is the endpoint that breaks under load in the monolith (proved by k6).
+Lives in product-service (V5 migration). The `products` table has a `tsvector` column and GIN index. The query uses `@Query` with native SQL `@@` operator. This is the endpoint that broke under load in the monolith (proved by k6) — the reason for extracting it.
 
 ### 8. Global Exception Handling
 `GlobalExceptionHandler` with `@RestControllerAdvice` — all exceptions caught in one place, translated to a consistent `ApiResponse` shape. Frontend-equivalent: a global error interceptor.
 
-### 9. Outbox Pattern
-Write to `outbox_events` table in the same DB transaction as the business write. A `@Scheduled` `OutboxPublisher` polls every 5 seconds and sends pending events to Kafka. Guarantees at-least-once delivery — no dual-write race condition.
+### 9. Outbox Pattern (decommissioned — learned pattern)
+Was used to sync products from monolith to product-service: write to `outbox_events` in the same DB transaction, a `@Scheduled` publisher polls and sends to Kafka. Guaranteed at-least-once delivery. Decommissioned in Phase 4 once the monolith stopped owning products.
 
-### 10. Kafka Event-Driven Sync
-`product.events` topic. Monolith publishes, `product-service` consumes via `@KafkaListener`. Both DBs stay in sync. `NoOpStockEventPublisher` is a placeholder in product-service (not yet wired).
+### 10. Kafka Event-Driven Sync (decommissioned — learned pattern)
+`product.events` topic. Monolith published, product-service consumed via `@KafkaListener`. Kept both DBs in sync during the weighted traffic split phase. Decommissioned alongside the Outbox in Phase 4.
 
 ### 11. API Gateway + Weighted Routing
-`WeightedRoutingFilter` in `gateway/` — a Spring Cloud `GlobalFilter` that rolls a random number against `PRODUCT_SERVICE_WEIGHT` env var. Routes to product-service or monolith. Built from scratch because Spring Cloud's built-in Weight predicate is broken in 2024.0.1.
+`WeightedRoutingFilter` in `gateway/` — a Spring Cloud `GlobalFilter` that rolls a random number against `PRODUCT_SERVICE_WEIGHT` env var. Routes `/api/products/**` and `/api/categories/**` to product-service, everything else to monolith. Weight is now 100 (product-service handles all product/category traffic). Built from scratch because Spring Cloud's built-in Weight predicate is broken in 2024.0.1.
 
 ### 12. JSONB Snapshot Pattern
-`OrderProductSnapshot` — when an order is created, the product name/price is snapshotted into the order item as JSONB. If the product is later updated or deleted, the order still knows what was ordered. Cross-service data ownership.
+`OrderProductSnapshot` — when an order is created, the product name/price/categories are snapshotted into the order item as TEXT (serialized JSON). If the product is later updated or deleted, the order still knows what was ordered. Cross-service data ownership solved without a shared DB.
 
 ### 13. CI/CD with GitHub Actions
-Two pipelines: backend (Docker → ECR → Elastic Beanstalk) and frontend (Angular build → S3 → CloudFront invalidation). Self-healing pipeline that recreates EB environment if missing.
+Four pipelines: monolith, product-service, gateway, frontend. Monolith pipeline is self-healing (recreates EB env if missing). Frontend: Angular build → S3 → CloudFront invalidation.
+
+### 14. HTTP Client Pattern (ProductServiceClient)
+`order/infrastructure/ProductServiceClient` — when creating an order, the monolith calls product-service over HTTP using Spring's `RestClient` to fetch product data and build the snapshot. This replaced the direct DB access after product was extracted.
 
 ---
 
@@ -93,6 +97,7 @@ Two pipelines: backend (Docker → ECR → Elastic Beanstalk) and frontend (Angu
 - Why `@GeneratedValue(strategy = UUID)` was removed in product-service (Hibernate 7 silently overwrote monolith IDs on save)
 - Why `OutboxPublisher` uses `.get()` to block — async send would mark events SENT before delivery
 - Why `@EnableKafka` must be explicit in Spring Boot 4.x (no auto-config)
+- Why Outbox + Kafka were decommissioned once the monolith stopped owning products — the sync existed only to serve the weighted traffic split phase
 
 ---
 
@@ -115,7 +120,7 @@ Auth wiring:
 - **Conversation over implementation.** He needs to be able to discuss these patterns in a team setting, not just run the code.
 - **"Why was this decision made" > "how does this line work"**
 - When introducing new patterns, relate them to what already exists in THIS codebase.
-- Phase 4 (clean up monolith product code) is the next implementation task — but there's no rush.
+- Next implementation task: **order-service extraction** — same Strangler Fig playbook as product-service.
 
 ---
 
@@ -129,7 +134,7 @@ Auth wiring:
 | DB (prod) | AWS RDS PostgreSQL |
 | DB (dev) | H2 in-memory |
 | Migrations | Flyway |
-| Messaging | Kafka (Confluent Cloud) |
+| Messaging | Kafka (Confluent Cloud) — monolith still uses it for low-stock alerts |
 | Gateway | Spring Cloud Gateway |
 | CI/CD | GitHub Actions |
 | Hosting | AWS Elastic Beanstalk + ECR |
