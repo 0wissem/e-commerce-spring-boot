@@ -53,6 +53,18 @@ jobs:
             ]
           }' > Dockerrun.aws.json
 
+      - name: Wait for environment to be Ready
+        run: |
+          for i in $(seq 1 20); do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --application-name product-service \
+              --environment-names ${{ secrets.PRODUCT_SERVICE_EB_ENV }} \
+              --query 'Environments[0].Status' --output text)
+            echo "Status: $STATUS"
+            [ "$STATUS" = "Ready" ] && break
+            sleep 30
+          done
+
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
         with:
