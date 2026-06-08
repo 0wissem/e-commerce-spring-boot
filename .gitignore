@@ -34,4 +34,3 @@ build/
 k6/*.pem
 CREDENTIALS.md
 ORDER_SERVICE_PLAN.md
-REVISION.md
