@@ -112,7 +112,7 @@ jobs:
           region: ${{ env.EB_REGION }}
           application_name: ${{ env.APP_NAME }}
           environment_name: ${{ env.ENV_NAME }}
-          version_label: ${{ github.sha }}
+          version_label: ${{ github.sha }}-product-service
           deployment_package: Dockerrun.aws.json
           use_existing_version_if_available: true
           wait_for_environment_recovery: 60
