@@ -1,6 +1,14 @@
 name: Build and Deploy to Elastic Beanstalk
 
 on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'preprod'
+        type: choice
+        options: [preprod, prod]
   push:
     branches:
       - master
@@ -58,7 +66,11 @@ jobs:
 
       - name: Set environment variables based on branch
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+          IS_PROD="false"
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then IS_PROD="true"; fi
+          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then IS_PROD="true"; fi
+
+          if [ "$IS_PROD" = "true" ]; then
             echo "ENV_NAME=Dockerized-Monolothic-Env-Prod" >> $GITHUB_ENV
             echo "IS_PROD=true" >> $GITHUB_ENV
           else
