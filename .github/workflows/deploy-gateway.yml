@@ -78,6 +78,14 @@ jobs:
             echo "EB_REGION=eu-west-3" >> $GITHUB_ENV
           fi
 
+      - name: 📋 Deployment target
+        run: |
+          if [ "${{ env.IS_PROD }}" = "true" ]; then
+            echo "Target: GATEWAY → PROD (eu-north-1)"
+          else
+            echo "Target: GATEWAY → PREPROD (eu-west-3)"
+          fi
+
       - name: Wait for environment to be Ready
         run: |
           for i in $(seq 1 20); do

@@ -82,6 +82,14 @@ jobs:
             echo "EB_REGION=eu-west-3" >> $GITHUB_ENV
           fi
 
+      - name: 📋 Deployment target
+        run: |
+          if [ "${{ env.IS_PROD }}" = "true" ]; then
+            echo "Target: MONOLITH → PROD (eu-north-1)"
+          else
+            echo "Target: MONOLITH → PREPROD (eu-west-3)"
+          fi
+
       - name: Ensure environment exists and is Ready
         env:
           SPRING_DATASOURCE_URL: ${{ env.IS_PROD == 'true' && secrets.SPRING_DATASOURCE_URL || secrets.PREPROD_SPRING_DATASOURCE_URL }}
