@@ -1,6 +1,14 @@
 name: Build and Deploy to Elastic Beanstalk
 
 on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'preprod'
+        type: choice
+        options: [preprod, prod]
   push:
     branches:
       - master
@@ -24,7 +32,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
+          aws-region: ${{ github.ref == 'refs/heads/master' && 'eu-north-1' || 'eu-west-3' }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -56,11 +64,25 @@ jobs:
             ]
           }' > Dockerrun.aws.json
 
+      - name: Set environment variables based on branch
+        run: |
+          IS_PROD="false"
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then IS_PROD="true"; fi
+          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then IS_PROD="true"; fi
+
+          if [ "$IS_PROD" = "true" ]; then
+            echo "ENV_NAME=Dockerized-Monolothic-Env-Prod" >> $GITHUB_ENV
+            echo "IS_PROD=true" >> $GITHUB_ENV
+          else
+            echo "ENV_NAME=${{ secrets.PREPROD_MONOLITH_EB_ENV }}" >> $GITHUB_ENV
+            echo "IS_PROD=false" >> $GITHUB_ENV
+          fi
+
       - name: Ensure environment exists and is Ready
         env:
-          SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
-          SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
-          SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+          SPRING_DATASOURCE_URL: ${{ env.IS_PROD == 'true' && secrets.SPRING_DATASOURCE_URL || secrets.PREPROD_SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.IS_PROD == 'true' && secrets.SPRING_DATASOURCE_USERNAME || secrets.PREPROD_SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.IS_PROD == 'true' && secrets.SPRING_DATASOURCE_PASSWORD || secrets.PREPROD_SPRING_DATASOURCE_PASSWORD }}
           KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
           KAFKA_API_KEY: ${{ secrets.KAFKA_API_KEY }}
           KAFKA_API_SECRET: ${{ secrets.KAFKA_API_SECRET }}
@@ -70,7 +92,7 @@ jobs:
           PRODUCT_SERVICE_URL: ${{ secrets.PRODUCT_SERVICE_URL }}
         run: |
           STATUS=$(aws elasticbeanstalk describe-environments \
-            --environment-names Dockerized-Monolothic-Env-Prod \
+            --environment-names ${{ env.ENV_NAME }} \
             --query 'Environments[?Status!=`Terminated`] | [0].Status' \
             --output text 2>/dev/null)
 
@@ -106,20 +128,20 @@ jobs:
 
             aws elasticbeanstalk create-environment \
               --application-name spring-boot-0 \
-              --environment-name Dockerized-Monolothic-Env-Prod \
+              --environment-name ${{ env.ENV_NAME }} \
               --solution-stack-name "$STACK" \
               --option-settings file://eb-options.json
 
             aws elasticbeanstalk wait environment-updated \
-              --environment-names Dockerized-Monolothic-Env-Prod
+              --environment-names ${{ env.ENV_NAME }}
 
           elif [ "$STATUS" != "Ready" ]; then
             echo "Environment status is $STATUS — rebuilding..."
             aws elasticbeanstalk rebuild-environment \
-              --environment-name Dockerized-Monolothic-Env-Prod || true
+              --environment-name ${{ env.ENV_NAME }} || true
             sleep 30
             aws elasticbeanstalk wait environment-updated \
-              --environment-names Dockerized-Monolothic-Env-Prod
+              --environment-names ${{ env.ENV_NAME }}
           else
             echo "Environment is Ready — proceeding with deploy."
           fi
@@ -131,7 +153,7 @@ jobs:
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           region: eu-north-1
           application_name: spring-boot-0
-          environment_name: Dockerized-Monolothic-Env-Prod
+          environment_name: ${{ env.ENV_NAME }}
           version_label: ${{ github.sha }}
           deployment_package: Dockerrun.aws.json
           use_existing_version_if_available: true
