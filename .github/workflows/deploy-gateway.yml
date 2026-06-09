@@ -54,12 +54,23 @@ jobs:
             ]
           }' > Dockerrun.aws.json
 
+      - name: Set environment based on branch
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            echo "ENV_NAME=${{ secrets.GATEWAY_EB_ENV }}" >> $GITHUB_ENV
+            echo "REGION=eu-north-1" >> $GITHUB_ENV
+          else
+            echo "ENV_NAME=${{ secrets.PREPROD_GATEWAY_EB_ENV }}" >> $GITHUB_ENV
+            echo "REGION=eu-west-3" >> $GITHUB_ENV
+          fi
+
       - name: Wait for environment to be Ready
         run: |
           for i in $(seq 1 20); do
             STATUS=$(aws elasticbeanstalk describe-environments \
               --application-name gateway \
-              --environment-names ${{ secrets.GATEWAY_EB_ENV }} \
+              --environment-names ${{ env.ENV_NAME }} \
+              --region ${{ env.REGION }} \
               --query 'Environments[0].Status' --output text)
             echo "Status: $STATUS"
             [ "$STATUS" = "Ready" ] && break
@@ -71,9 +82,9 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: eu-north-1
+          region: ${{ env.REGION }}
           application_name: gateway
-          environment_name: ${{ secrets.GATEWAY_EB_ENV }}
+          environment_name: ${{ env.ENV_NAME }}
           version_label: ${{ github.sha }}
           deployment_package: Dockerrun.aws.json
           use_existing_version_if_available: true

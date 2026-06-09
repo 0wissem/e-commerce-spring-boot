@@ -29,7 +29,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
+          aws-region: ${{ github.ref == 'refs/heads/master' && 'eu-north-1' || 'eu-west-3' }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -79,66 +79,17 @@ jobs:
             echo "DB_PASSWORD=${{ secrets.PREPROD_PRODUCT_SERVICE_DB_PASSWORD }}" >> $GITHUB_ENV
           fi
 
-      - name: Ensure environment exists and is Ready
-        env:
-          DB_URL: ${{ env.DB_URL }}
-          DB_USERNAME: ${{ env.DB_USERNAME }}
-          DB_PASSWORD: ${{ env.DB_PASSWORD }}
-          KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
-          KAFKA_API_KEY: ${{ secrets.KAFKA_API_KEY }}
-          KAFKA_API_SECRET: ${{ secrets.KAFKA_API_SECRET }}
+      - name: Wait for environment to be Ready
         run: |
-          STATUS=$(aws elasticbeanstalk describe-environments \
-            --application-name product-service \
-            --environment-names ${{ env.ENV_NAME }} \
-            --query 'Environments[?Status!=`Terminated`] | [0].Status' \
-            --output text 2>/dev/null)
-
-          if [ "$STATUS" = "None" ] || [ -z "$STATUS" ]; then
-            echo "Environment does not exist — creating from scratch..."
-
-            STACK=$(aws elasticbeanstalk list-available-solution-stacks \
-              --query 'SolutionStacks[?contains(@, `running Docker`) && contains(@, `Amazon Linux 2023`)] | [0]' \
-              --output text)
-            echo "Solution stack: $STACK"
-
-            python3 - <<PYEOF
-          import json, os
-          options = [
-            {"Namespace": "aws:elasticbeanstalk:environment",             "OptionName": "EnvironmentType",     "Value": "SingleInstance"},
-            {"Namespace": "aws:autoscaling:launchconfiguration",          "OptionName": "IamInstanceProfile",  "Value": "eb-ec2-ecr-pull-role"},
-            {"Namespace": "aws:autoscaling:launchconfiguration",          "OptionName": "InstanceType",        "Value": "t3.small"},
-            {"Namespace": "aws:elasticbeanstalk:application:environment", "OptionName": "SPRING_PROFILES_ACTIVE",  "Value": "prod"},
-            {"Namespace": "aws:elasticbeanstalk:application:environment", "OptionName": "DB_URL",               "Value": os.environ["DB_URL"]},
-            {"Namespace": "aws:elasticbeanstalk:application:environment", "OptionName": "DB_USERNAME",          "Value": os.environ["DB_USERNAME"]},
-            {"Namespace": "aws:elasticbeanstalk:application:environment", "OptionName": "DB_PASSWORD",          "Value": os.environ["DB_PASSWORD"]},
-            {"Namespace": "aws:elasticbeanstalk:application:environment", "OptionName": "KAFKA_BOOTSTRAP_SERVERS", "Value": os.environ["KAFKA_BOOTSTRAP_SERVERS"]},
-            {"Namespace": "aws:elasticbeanstalk:application:environment", "OptionName": "KAFKA_API_KEY",        "Value": os.environ["KAFKA_API_KEY"]},
-            {"Namespace": "aws:elasticbeanstalk:application:environment", "OptionName": "KAFKA_API_SECRET",     "Value": os.environ["KAFKA_API_SECRET"]},
-          ]
-          with open('eb-options.json', 'w') as f:
-            json.dump(options, f)
-          PYEOF
-
-            aws elasticbeanstalk create-environment \
+          for i in $(seq 1 20); do
+            STATUS=$(aws elasticbeanstalk describe-environments \
               --application-name product-service \
-              --environment-name ${{ env.ENV_NAME }} \
-              --solution-stack-name "$STACK" \
-              --option-settings file://eb-options.json
-
-            aws elasticbeanstalk wait environment-updated \
-              --environment-names ${{ env.ENV_NAME }}
-
-          elif [ "$STATUS" != "Ready" ]; then
-            echo "Environment status is $STATUS — rebuilding..."
-            aws elasticbeanstalk rebuild-environment \
-              --environment-name ${{ env.ENV_NAME }} || true
+              --environment-names ${{ env.ENV_NAME }} \
+              --query 'Environments[0].Status' --output text)
+            echo "Status: $STATUS"
+            [ "$STATUS" = "Ready" ] && break
             sleep 30
-            aws elasticbeanstalk wait environment-updated \
-              --environment-names ${{ env.ENV_NAME }}
-          else
-            echo "Environment is Ready — proceeding with deploy."
-          fi
+          done
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
