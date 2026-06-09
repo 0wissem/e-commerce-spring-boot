@@ -1,6 +1,14 @@
 name: Build and Deploy to Elastic Beanstalk
 
 on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'preprod'
+        type: choice
+        options: [preprod, prod]
   push:
     branches:
       - master
@@ -56,11 +64,37 @@ jobs:
             ]
           }' > Dockerrun.aws.json
 
+      - name: Set environment variables based on branch
+        run: |
+          IS_PROD="false"
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then IS_PROD="true"; fi
+          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then IS_PROD="true"; fi
+
+          if [ "$IS_PROD" = "true" ]; then
+            echo "ENV_NAME=Dockerized-Monolothic-Env-Prod" >> $GITHUB_ENV
+            echo "IS_PROD=true" >> $GITHUB_ENV
+            echo "APP_NAME=spring-boot-0" >> $GITHUB_ENV
+            echo "EB_REGION=eu-north-1" >> $GITHUB_ENV
+          else
+            echo "ENV_NAME=${{ secrets.PREPROD_MONOLITH_EB_ENV }}" >> $GITHUB_ENV
+            echo "IS_PROD=false" >> $GITHUB_ENV
+            echo "APP_NAME=preprod" >> $GITHUB_ENV
+            echo "EB_REGION=eu-west-3" >> $GITHUB_ENV
+          fi
+
+      - name: 📋 Deployment target
+        run: |
+          if [ "${{ env.IS_PROD }}" = "true" ]; then
+            echo "Target: MONOLITH → PROD (eu-north-1)"
+          else
+            echo "Target: MONOLITH → PREPROD (eu-west-3)"
+          fi
+
       - name: Ensure environment exists and is Ready
         env:
-          SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
-          SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
-          SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+          SPRING_DATASOURCE_URL: ${{ env.IS_PROD == 'true' && secrets.SPRING_DATASOURCE_URL || secrets.PREPROD_SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.IS_PROD == 'true' && secrets.SPRING_DATASOURCE_USERNAME || secrets.PREPROD_SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.IS_PROD == 'true' && secrets.SPRING_DATASOURCE_PASSWORD || secrets.PREPROD_SPRING_DATASOURCE_PASSWORD }}
           KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
           KAFKA_API_KEY: ${{ secrets.KAFKA_API_KEY }}
           KAFKA_API_SECRET: ${{ secrets.KAFKA_API_SECRET }}
@@ -70,7 +104,8 @@ jobs:
           PRODUCT_SERVICE_URL: ${{ secrets.PRODUCT_SERVICE_URL }}
         run: |
           STATUS=$(aws elasticbeanstalk describe-environments \
-            --environment-names Dockerized-Monolothic-Env-Prod \
+            --environment-names ${{ env.ENV_NAME }} \
+            --region ${{ env.EB_REGION }} \
             --query 'Environments[?Status!=`Terminated`] | [0].Status' \
             --output text 2>/dev/null)
 
@@ -105,21 +140,25 @@ jobs:
           PYEOF
 
             aws elasticbeanstalk create-environment \
-              --application-name spring-boot-0 \
-              --environment-name Dockerized-Monolothic-Env-Prod \
+              --application-name ${{ env.APP_NAME }} \
+              --environment-name ${{ env.ENV_NAME }} \
               --solution-stack-name "$STACK" \
+              --region ${{ env.EB_REGION }} \
               --option-settings file://eb-options.json
 
             aws elasticbeanstalk wait environment-updated \
-              --environment-names Dockerized-Monolothic-Env-Prod
+              --environment-names ${{ env.ENV_NAME }} \
+              --region ${{ env.EB_REGION }}
 
           elif [ "$STATUS" != "Ready" ]; then
             echo "Environment status is $STATUS — rebuilding..."
             aws elasticbeanstalk rebuild-environment \
-              --environment-name Dockerized-Monolothic-Env-Prod || true
+              --environment-name ${{ env.ENV_NAME }} \
+              --region ${{ env.EB_REGION }} || true
             sleep 30
             aws elasticbeanstalk wait environment-updated \
-              --environment-names Dockerized-Monolothic-Env-Prod
+              --environment-names ${{ env.ENV_NAME }} \
+              --region ${{ env.EB_REGION }}
           else
             echo "Environment is Ready — proceeding with deploy."
           fi
@@ -129,9 +168,9 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: eu-north-1
-          application_name: spring-boot-0
-          environment_name: Dockerized-Monolothic-Env-Prod
-          version_label: ${{ github.sha }}
+          region: ${{ env.EB_REGION }}
+          application_name: ${{ env.APP_NAME }}
+          environment_name: ${{ env.ENV_NAME }}
+          version_label: ${{ github.sha }}-monolith
           deployment_package: Dockerrun.aws.json
           use_existing_version_if_available: true

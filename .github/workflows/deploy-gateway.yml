@@ -1,6 +1,14 @@
 name: Build and Deploy Gateway to Elastic Beanstalk
 
 on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'preprod'
+        type: choice
+        options: [preprod, prod]
   push:
     branches:
       - master
@@ -54,25 +62,51 @@ jobs:
             ]
           }' > Dockerrun.aws.json
 
-      - name: Set gateway environment variables
+      - name: Set environment based on branch
         run: |
-          aws elasticbeanstalk wait environment-updated \
-            --environment-names ${{ secrets.GATEWAY_EB_ENV }}
-          aws elasticbeanstalk update-environment \
-            --environment-name ${{ secrets.GATEWAY_EB_ENV }} \
-            --option-settings \
-              Namespace=aws:elasticbeanstalk:application:environment,OptionName=PRODUCT_SERVICE_WEIGHT,Value=100
-          aws elasticbeanstalk wait environment-updated \
-            --environment-names ${{ secrets.GATEWAY_EB_ENV }}
+          IS_PROD="false"
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then IS_PROD="true"; fi
+          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then IS_PROD="true"; fi
+
+          if [ "$IS_PROD" = "true" ]; then
+            echo "ENV_NAME=${{ secrets.GATEWAY_EB_ENV }}" >> $GITHUB_ENV
+            echo "APP_NAME=gateway" >> $GITHUB_ENV
+            echo "EB_REGION=eu-north-1" >> $GITHUB_ENV
+          else
+            echo "ENV_NAME=${{ secrets.PREPROD_GATEWAY_EB_ENV }}" >> $GITHUB_ENV
+            echo "APP_NAME=preprod" >> $GITHUB_ENV
+            echo "EB_REGION=eu-west-3" >> $GITHUB_ENV
+          fi
+
+      - name: 📋 Deployment target
+        run: |
+          if [ "${{ env.IS_PROD }}" = "true" ]; then
+            echo "Target: GATEWAY → PROD (eu-north-1)"
+          else
+            echo "Target: GATEWAY → PREPROD (eu-west-3)"
+          fi
+
+      - name: Wait for environment to be Ready
+        run: |
+          for i in $(seq 1 20); do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --application-name ${{ env.APP_NAME }} \
+              --environment-names ${{ env.ENV_NAME }} \
+              --region ${{ env.EB_REGION }} \
+              --query 'Environments[0].Status' --output text)
+            echo "Status: $STATUS"
+            [ "$STATUS" = "Ready" ] && break
+            sleep 30
+          done
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: eu-north-1
-          application_name: gateway
-          environment_name: ${{ secrets.GATEWAY_EB_ENV }}
-          version_label: ${{ github.sha }}
+          region: ${{ env.EB_REGION }}
+          application_name: ${{ env.APP_NAME }}
+          environment_name: ${{ env.ENV_NAME }}
+          version_label: ${{ github.sha }}-gateway
           deployment_package: Dockerrun.aws.json
           use_existing_version_if_available: true
