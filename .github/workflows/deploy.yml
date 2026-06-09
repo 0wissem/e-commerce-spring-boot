@@ -73,9 +73,13 @@ jobs:
           if [ "$IS_PROD" = "true" ]; then
             echo "ENV_NAME=Dockerized-Monolothic-Env-Prod" >> $GITHUB_ENV
             echo "IS_PROD=true" >> $GITHUB_ENV
+            echo "APP_NAME=spring-boot-0" >> $GITHUB_ENV
+            echo "EB_REGION=eu-north-1" >> $GITHUB_ENV
           else
             echo "ENV_NAME=${{ secrets.PREPROD_MONOLITH_EB_ENV }}" >> $GITHUB_ENV
             echo "IS_PROD=false" >> $GITHUB_ENV
+            echo "APP_NAME=preprod" >> $GITHUB_ENV
+            echo "EB_REGION=eu-west-3" >> $GITHUB_ENV
           fi
 
       - name: Ensure environment exists and is Ready
@@ -93,6 +97,7 @@ jobs:
         run: |
           STATUS=$(aws elasticbeanstalk describe-environments \
             --environment-names ${{ env.ENV_NAME }} \
+            --region ${{ env.EB_REGION }} \
             --query 'Environments[?Status!=`Terminated`] | [0].Status' \
             --output text 2>/dev/null)
 
@@ -127,21 +132,25 @@ jobs:
           PYEOF
 
             aws elasticbeanstalk create-environment \
-              --application-name spring-boot-0 \
+              --application-name ${{ env.APP_NAME }} \
               --environment-name ${{ env.ENV_NAME }} \
               --solution-stack-name "$STACK" \
+              --region ${{ env.EB_REGION }} \
               --option-settings file://eb-options.json
 
             aws elasticbeanstalk wait environment-updated \
-              --environment-names ${{ env.ENV_NAME }}
+              --environment-names ${{ env.ENV_NAME }} \
+              --region ${{ env.EB_REGION }}
 
           elif [ "$STATUS" != "Ready" ]; then
             echo "Environment status is $STATUS — rebuilding..."
             aws elasticbeanstalk rebuild-environment \
-              --environment-name ${{ env.ENV_NAME }} || true
+              --environment-name ${{ env.ENV_NAME }} \
+              --region ${{ env.EB_REGION }} || true
             sleep 30
             aws elasticbeanstalk wait environment-updated \
-              --environment-names ${{ env.ENV_NAME }}
+              --environment-names ${{ env.ENV_NAME }} \
+              --region ${{ env.EB_REGION }}
           else
             echo "Environment is Ready — proceeding with deploy."
           fi
@@ -151,8 +160,8 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: eu-north-1
-          application_name: spring-boot-0
+          region: ${{ env.EB_REGION }}
+          application_name: ${{ env.APP_NAME }}
           environment_name: ${{ env.ENV_NAME }}
           version_label: ${{ github.sha }}
           deployment_package: Dockerrun.aws.json

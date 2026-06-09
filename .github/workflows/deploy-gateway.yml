@@ -70,19 +70,21 @@ jobs:
 
           if [ "$IS_PROD" = "true" ]; then
             echo "ENV_NAME=${{ secrets.GATEWAY_EB_ENV }}" >> $GITHUB_ENV
-            echo "REGION=eu-north-1" >> $GITHUB_ENV
+            echo "APP_NAME=gateway" >> $GITHUB_ENV
+            echo "EB_REGION=eu-north-1" >> $GITHUB_ENV
           else
             echo "ENV_NAME=${{ secrets.PREPROD_GATEWAY_EB_ENV }}" >> $GITHUB_ENV
-            echo "REGION=eu-west-3" >> $GITHUB_ENV
+            echo "APP_NAME=preprod" >> $GITHUB_ENV
+            echo "EB_REGION=eu-west-3" >> $GITHUB_ENV
           fi
 
       - name: Wait for environment to be Ready
         run: |
           for i in $(seq 1 20); do
             STATUS=$(aws elasticbeanstalk describe-environments \
-              --application-name gateway \
+              --application-name ${{ env.APP_NAME }} \
               --environment-names ${{ env.ENV_NAME }} \
-              --region ${{ env.REGION }} \
+              --region ${{ env.EB_REGION }} \
               --query 'Environments[0].Status' --output text)
             echo "Status: $STATUS"
             [ "$STATUS" = "Ready" ] && break
@@ -94,8 +96,8 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: ${{ env.REGION }}
-          application_name: gateway
+          region: ${{ env.EB_REGION }}
+          application_name: ${{ env.APP_NAME }}
           environment_name: ${{ env.ENV_NAME }}
           version_label: ${{ github.sha }}
           deployment_package: Dockerrun.aws.json

@@ -69,11 +69,15 @@ jobs:
 
           if [ "$IS_PROD" = "true" ]; then
             echo "ENV_NAME=${{ secrets.PRODUCT_SERVICE_EB_ENV }}" >> $GITHUB_ENV
+            echo "APP_NAME=product-service" >> $GITHUB_ENV
+            echo "EB_REGION=eu-north-1" >> $GITHUB_ENV
             echo "DB_URL=${{ secrets.SPRING_DATASOURCE_URL }}" >> $GITHUB_ENV
             echo "DB_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}" >> $GITHUB_ENV
             echo "DB_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}" >> $GITHUB_ENV
           else
             echo "ENV_NAME=${{ secrets.PREPROD_PRODUCT_SERVICE_EB_ENV }}" >> $GITHUB_ENV
+            echo "APP_NAME=preprod" >> $GITHUB_ENV
+            echo "EB_REGION=eu-west-3" >> $GITHUB_ENV
             echo "DB_URL=${{ secrets.PREPROD_PRODUCT_SERVICE_DB_URL }}" >> $GITHUB_ENV
             echo "DB_USERNAME=${{ secrets.PREPROD_PRODUCT_SERVICE_DB_USERNAME }}" >> $GITHUB_ENV
             echo "DB_PASSWORD=${{ secrets.PREPROD_PRODUCT_SERVICE_DB_PASSWORD }}" >> $GITHUB_ENV
@@ -83,8 +87,9 @@ jobs:
         run: |
           for i in $(seq 1 20); do
             STATUS=$(aws elasticbeanstalk describe-environments \
-              --application-name product-service \
+              --application-name ${{ env.APP_NAME }} \
               --environment-names ${{ env.ENV_NAME }} \
+              --region ${{ env.EB_REGION }} \
               --query 'Environments[0].Status' --output text)
             echo "Status: $STATUS"
             [ "$STATUS" = "Ready" ] && break
@@ -96,8 +101,8 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: eu-north-1
-          application_name: product-service
+          region: ${{ env.EB_REGION }}
+          application_name: ${{ env.APP_NAME }}
           environment_name: ${{ env.ENV_NAME }}
           version_label: ${{ github.sha }}
           deployment_package: Dockerrun.aws.json
