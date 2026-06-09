@@ -54,16 +54,17 @@ jobs:
             ]
           }' > Dockerrun.aws.json
 
-      - name: Set gateway environment variables
+      - name: Wait for environment to be Ready
         run: |
-          aws elasticbeanstalk wait environment-updated \
-            --environment-names ${{ secrets.GATEWAY_EB_ENV }}
-          aws elasticbeanstalk update-environment \
-            --environment-name ${{ secrets.GATEWAY_EB_ENV }} \
-            --option-settings \
-              Namespace=aws:elasticbeanstalk:application:environment,OptionName=PRODUCT_SERVICE_WEIGHT,Value=100
-          aws elasticbeanstalk wait environment-updated \
-            --environment-names ${{ secrets.GATEWAY_EB_ENV }}
+          for i in $(seq 1 20); do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --application-name gateway \
+              --environment-names ${{ secrets.GATEWAY_EB_ENV }} \
+              --query 'Environments[0].Status' --output text)
+            echo "Status: $STATUS"
+            [ "$STATUS" = "Ready" ] && break
+            sleep 30
+          done
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
