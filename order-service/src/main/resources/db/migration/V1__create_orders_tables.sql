@@ -1,0 +1,25 @@
+-- V1 — create orders + order_items tables
+--
+-- This is a placeholder. Write the DDL yourself.
+--
+-- Reminder of the data model (see ORDER_SERVICE_PLAN.md → "The data model"):
+--
+--   orders
+--     id            (PK)
+--     customer_id   -- cross-service reference, NO foreign key
+--     customer_name -- snapshot of the name at creation time
+--     status        -- PENDING / CONFIRMED / SHIPPED / DELIVERED / CANCELLED
+--     total_price
+--
+--   order_items
+--     id            (PK)
+--     order_id      -- FK -> orders(id)  (same DB, real FK is fine)
+--     product_id    -- cross-service reference, NO foreign key
+--     product_name
+--     quantity
+--     unit_price
+--     product_snapshot  -- JSON stored as TEXT (name + price + categories at purchase)
+--
+-- Keep the types portable (varchar / text / int / double) so the same SQL runs on
+-- both H2 (dev) and PostgreSQL (prod). Add an index on orders(customer_id) for the
+-- "orders by customer" lookup.
