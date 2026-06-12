@@ -20,17 +20,17 @@ public class Order {
     private String id;
 
     @Column(nullable = false)
-    private String customer_id;
+    private String customerId;
 
     @Column(nullable = false)
-    private String customer_name;
+    private String customerName;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;
 
     @Column(nullable = false)
-    private double total_price;
+    private double totalPrice;
 
     @OneToMany(mappedBy = "order",
             cascade = CascadeType.ALL,
@@ -39,11 +39,11 @@ public class Order {
 
     public Order () {}
 
-    public Order (String id, String customer_id, String customer_name, double total_price, OrderStatus orderStatus) {
+    public Order (String id, String customerId, String customerName, double totalPrice, OrderStatus orderStatus) {
         this.id = id;
-        this.customer_id = customer_id;
-        this.customer_name = customer_name;
-        this.total_price = total_price;
+        this.customerId = customerId;
+        this.customerName = customerName;
+        this.totalPrice = totalPrice;
         this.status = orderStatus;
     }
 
@@ -51,20 +51,28 @@ public class Order {
         return status;
     }
 
-    public double getTotal_price() {
-        return total_price;
+    public double getTotalPrice() {
+        return totalPrice;
     }
 
-    public String getCustomer_id() {
-        return customer_id;
+    public String getCustomerId() {
+        return customerId;
     }
 
-    public String getCustomer_name() {
-        return customer_name;
+    public String getCustomerName() {
+        return customerName;
     }
 
     public String getId() {
         return id;
+    }
+
+    public List<OrderItem> getOrderItems() {
+        return orderItems;
+    }
+
+    public void setOrderItems(List<OrderItem> orderItems) {
+        this.orderItems = orderItems;
     }
 
     public void setId(String id) {
@@ -75,15 +83,15 @@ public class Order {
         this.status = status;
     }
 
-    public void setTotal_price(double total_price) {
-        this.total_price = total_price;
+    public void setTotalPrice(double totalPrice) {
+        this.totalPrice = totalPrice;
     }
 
-    public void setCustomer_id(String customer_id) {
-        this.customer_id = customer_id;
+    public void setCustomerId(String customerId) {
+        this.customerId = customerId;
     }
 
-    public void setCustomer_name(String customer_name) {
-        this.customer_name = customer_name;
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
     }
 }

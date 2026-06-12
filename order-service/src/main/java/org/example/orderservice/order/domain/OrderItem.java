@@ -20,13 +20,13 @@ public class OrderItem {
     private String id;
 
     @Column(nullable = false)
-    private String product_id;
+    private String productId;
 
     @Column(nullable = false)
-    private String product_name;
+    private String productName;
 
     @Column(nullable = false)
-    private double unit_price;
+    private double unitPrice;
 
     @Convert(converter = OrderProductSnapshotConverter.class)
     @Column(columnDefinition = "text")
@@ -36,7 +36,7 @@ public class OrderItem {
     private int quantity;
 
     @Column(nullable = false)
-    private double total_price;
+    private double totalPrice;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
@@ -44,31 +44,31 @@ public class OrderItem {
 
     public OrderItem() {}
 
-    public OrderItem(String id, String product_id, String product_name, double unit_price,
-                     OrderProductSnapshot orderProductSnapshot, int quantity, double total_price) {
+    public OrderItem(String id, String productId, String productName, double unitPrice,
+                     OrderProductSnapshot orderProductSnapshot, int quantity, double totalPrice) {
         this.id = id;
-        this.product_id = product_id;
-        this.product_name = product_name;
-        this.unit_price = unit_price;
+        this.productId = productId;
+        this.productName = productName;
+        this.unitPrice = unitPrice;
         this.orderProductSnapshot = orderProductSnapshot;
         this.quantity = quantity;
-        this.total_price = total_price;
+        this.totalPrice = totalPrice;
     }
 
     public String getId() {
         return id;
     }
 
-    public String getProduct_id() {
-        return product_id;
+    public String getProductId() {
+        return productId;
     }
 
-    public String getProduct_name() {
-        return product_name;
+    public String getProductName() {
+        return productName;
     }
 
-    public double getUnit_price() {
-        return unit_price;
+    public double getUnitPrice() {
+        return unitPrice;
     }
 
     public int getQuantity() {
@@ -79,8 +79,8 @@ public class OrderItem {
         return orderProductSnapshot;
     }
 
-    public double getTotal_price() {
-        return total_price;
+    public double getTotalPrice() {
+        return totalPrice;
     }
 
     public Order getOrder() {
@@ -91,16 +91,16 @@ public class OrderItem {
         this.id = id;
     }
 
-    public void setProduct_id(String product_id) {
-        this.product_id = product_id;
+    public void setProductId(String productId) {
+        this.productId = productId;
     }
 
-    public void setProduct_name(String product_name) {
-        this.product_name = product_name;
+    public void setProductName(String productName) {
+        this.productName = productName;
     }
 
-    public void setUnit_price(double unit_price) {
-        this.unit_price = unit_price;
+    public void setUnitPrice(double unitPrice) {
+        this.unitPrice = unitPrice;
     }
 
     public void setProductSnapshot(OrderProductSnapshot orderProductSnapshot) {
@@ -111,8 +111,8 @@ public class OrderItem {
         this.quantity = quantity;
     }
 
-    public void setTotal_price(double total_price) {
-        this.total_price = total_price;
+    public void setTotalPrice(double totalPrice) {
+        this.totalPrice = totalPrice;
     }
 
     public void setOrder(Order order) {
