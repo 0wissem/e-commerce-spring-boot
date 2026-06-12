@@ -1,1 +1,0 @@
-UPDATE order_items SET product_snapshot = NULL;
