@@ -1,0 +1,122 @@
+# Full local stack: one Postgres PER SERVICE + monolith + product-service + order-service + gateway.
+# Bring it up with:  docker compose up -d --build
+# Front door is the gateway on http://localhost:8090
+#
+# Each data-owning service has its OWN Postgres (own container, own volume) so a
+# database failure is isolated to a single service — matching the production
+# topology (one AWS RDS per service). The gateway is stateless (no database).
+#
+# Note: services reach each other by service name on their INTERNAL ports
+# (e.g. http://product-service:8081, postgres-orders:5432). Host port mappings are for your tools.
+
+services:
+  postgres-monolith:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: monolith
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-monolith:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres-products:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: products
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata-products:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres-orders:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orders
+    ports:
+      - "5436:5432"
+    volumes:
+      - pgdata-orders:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  monolith:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-monolith:5432/monolith
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres-monolith:
+        condition: service_healthy
+
+  product-service:
+    build: ./product-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres-products:5432/products
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      # Kafka is excluded via autoconfigure, but the properties still reference these.
+      KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+      KAFKA_API_KEY: dummy
+      KAFKA_API_SECRET: dummy
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres-products:
+        condition: service_healthy
+
+  order-service:
+    build: ./order-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres-orders:5432/orders
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      PRODUCT_SERVICE_URL: http://product-service:8081
+      CUSTOMER_SERVICE_URL: http://monolith:8080
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-orders:
+        condition: service_healthy
+
+  gateway:
+    build: ./gateway
+    environment:
+      MONOLITH_URL: http://monolith:8080
+      PRODUCT_SERVICE_URL: http://product-service:8081
+      ORDER_SERVICE_URL: http://order-service:8082
+    ports:
+      - "8090:8082"            # gateway listens on 8082 in-container; exposed on host 8090
+    depends_on:
+      - monolith
+      - product-service
+      - order-service
+
+volumes:
+  pgdata-monolith:
+  pgdata-products:
+  pgdata-orders:

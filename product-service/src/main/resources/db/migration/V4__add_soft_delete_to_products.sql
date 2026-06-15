@@ -1,1 +1,0 @@
-ALTER TABLE products ADD COLUMN deleted_at TIMESTAMP NULL;

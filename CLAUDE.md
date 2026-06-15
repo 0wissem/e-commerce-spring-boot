@@ -17,10 +17,11 @@ An e-commerce Spring Boot app that has deliberately evolved through the full jou
 Monolith → Load-tested → Proved degradation → Extracted microservice → API Gateway → Outbox + Kafka → Weighted routing → Phase 4 cleanup
 ```
 
-It now has three deployable services on AWS Elastic Beanstalk:
-- **Monolith** (`spring-boot-0`) — owns **orders** and **customers** only. Products and categories are fully gone from its codebase and DB.
+It now has four deployable services:
+- **Monolith** (`spring-boot-0`) — owns **customers** only. Orders were extracted to order-service; products/categories are long gone. Its codebase and DB are now customers-only — no Kafka, no mail.
 - **product-service** — owns **products** and **categories**, with its own PostgreSQL RDS
-- **gateway** — Spring Cloud Gateway routing `/api/products/**` and `/api/categories/**` to product-service (weight=100%), everything else to monolith
+- **order-service** — owns **orders** and **order_items**, its own PostgreSQL DB; calls product-service (product snapshot) and the monolith (customer-name snapshot) over HTTP on create
+- **gateway** — Spring Cloud Gateway routing `/api/orders/**` → order-service, `/api/products/**` & `/api/categories/**` → product-service, everything else → monolith
 
 **Phase 4 — ✅ COMPLETE**
 1. ✅ Remove product code (domain/application/infrastructure/api) from monolith
@@ -29,7 +30,9 @@ It now has three deployable services on AWS Elastic Beanstalk:
 4. ✅ Remove category code from monolith — already served by product-service via gateway
 5. ✅ Drop categories table from monolith DB (V22)
 
-**Long-term vision (Strangler Fig):** Every domain gets extracted progressively. When the last domain is out, the monolith EB becomes the gateway EB and the monolith is decommissioned. Next extraction: **order-service → customer-service**.
+**Phase 5 — order-service extraction ✅ COMPLETE (locally, 2026-06-15):** order-service built, gateway flipped `/api/orders/**` → order-service, orders data migrated, and orders removed from the monolith (code + tables via V2). The monolith's dead low-stock-alert Kafka feature was also removed. Pending only the AWS deploy (paused — free-tier credits exhausted).
+
+**Long-term vision (Strangler Fig):** Every domain gets extracted progressively. When the last domain is out, the monolith EB becomes the gateway EB and the monolith is decommissioned. Next extraction: **customer-service** (the monolith's last domain).
 
 ---
 
@@ -120,7 +123,7 @@ Auth wiring:
 - **Conversation over implementation.** He needs to be able to discuss these patterns in a team setting, not just run the code.
 - **"Why was this decision made" > "how does this line work"**
 - When introducing new patterns, relate them to what already exists in THIS codebase.
-- Next implementation task: **order-service extraction** — same Strangler Fig playbook as product-service.
+- **order-service extraction is done locally** (built + cut over + monolith cleaned). Next up: the AWS deploy when credits return, then the **customer-service** extraction.
 
 ---
 
@@ -134,7 +137,7 @@ Auth wiring:
 | DB (prod) | AWS RDS PostgreSQL |
 | DB (dev) | H2 in-memory |
 | Migrations | Flyway |
-| Messaging | Kafka (Confluent Cloud) — monolith still uses it for low-stock alerts |
+| Messaging | Kafka (Confluent Cloud) — decommissioned; the monolith's low-stock-alert consumer was removed (monolith no longer depends on Kafka or mail) |
 | Gateway | Spring Cloud Gateway |
 | CI/CD | GitHub Actions |
 | Hosting | AWS Elastic Beanstalk + ECR |
