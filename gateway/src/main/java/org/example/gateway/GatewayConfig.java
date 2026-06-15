@@ -13,9 +13,14 @@ public class GatewayConfig {
     public RouteLocator routes(
             RouteLocatorBuilder builder,
             @Value("${PRODUCT_SERVICE_URL:http://localhost:8081}") String productServiceUrl,
+            @Value("${ORDER_SERVICE_URL:http://localhost:8082}") String orderServiceUrl,
             @Value("${MONOLITH_URL:http://localhost:8080}") String monolithUrl) {
 
         return builder.routes()
+                // Specific routes first; the monolith catch-all must stay last.
+                .route("order-service", r -> r
+                        .path("/api/orders/**")
+                        .uri(orderServiceUrl))
                 .route("product-service", r -> r
                         .path("/api/products/**", "/api/categories/**")
                         .uri(productServiceUrl))
