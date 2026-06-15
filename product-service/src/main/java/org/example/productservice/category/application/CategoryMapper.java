@@ -6,6 +6,8 @@ import org.example.productservice.category.domain.Category;
 
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 public class CategoryMapper {
 
@@ -18,6 +20,6 @@ public class CategoryMapper {
     }
 
     public Category toDomain(CategoryRequest request) {
-        return new Category(null, request.name(), request.description());
+        return new Category(UUID.randomUUID().toString(), request.name(), request.description());
     }
 }
