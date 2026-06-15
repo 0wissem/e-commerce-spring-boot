@@ -1,0 +1,13 @@
+.git
+.idea
+.claude
+target
+**/target
+frontend
+product-service
+order-service
+gateway
+daily-report
+docker
+*.md
+*.iml
