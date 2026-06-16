@@ -1,0 +1,184 @@
+# One Postgres StatefulSet per service. Each gets its own PVC (volumeClaimTemplate),
+# so its data survives Pod restarts, and its own headless Service for stable DNS.
+# PGDATA points at a subdirectory to avoid the "data dir not empty" init issue on
+# mounted volumes.
+
+# ---------- monolith DB ----------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-monolith
+  namespace: ecommerce
+spec:
+  serviceName: postgres-monolith
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-monolith
+  template:
+    metadata:
+      labels:
+        app: postgres-monolith
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: monolith
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-monolith
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-monolith
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# ---------- products DB ----------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-products
+  namespace: ecommerce
+spec:
+  serviceName: postgres-products
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-products
+  template:
+    metadata:
+      labels:
+        app: postgres-products
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: products
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-products
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-products
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# ---------- orders DB ----------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-orders
+  namespace: ecommerce
+spec:
+  serviceName: postgres-orders
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-orders
+  template:
+    metadata:
+      labels:
+        app: postgres-orders
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: orders
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-orders
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-orders
+  ports:
+    - port: 5432
+      targetPort: 5432

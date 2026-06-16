@@ -1,0 +1,71 @@
+# Externalized database layer — the "RDS topology".
+#
+# Replaces the in-cluster Postgres StatefulSets (02-postgres.yaml): every DB now lives
+# OUTSIDE the cluster, reached by the same Service name the apps already use. This is
+# the production shape — in real prod these point at AWS RDS endpoints instead of the
+# local host.
+#
+# MUTUALLY EXCLUSIVE with 02-postgres.yaml: same Service names, so apply one OR the other.
+#   kubectl delete -f 02-postgres.yaml      # remove in-cluster DBs (PVCs remain)
+#   kubectl apply  -f 04-external-db.yaml    # point the names outside
+#   kubectl rollout restart deployment monolith product-service order-service -n ecommerce
+#
+# See RDS_TOPOLOGY.md for the full explanation, diagrams, and migration runbook.
+
+# ---------- orders: ExternalName (clean DNS alias, same port 5432) ----------
+# This is the form you'd use for real RDS — one unique hostname per instance.
+# In prod: externalName: orders-db.xxxxxx.eu-west-3.rds.amazonaws.com
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-orders
+  namespace: ecommerce
+spec:
+  type: ExternalName
+  externalName: host.minikube.internal
+---
+# ---------- monolith: Service (no selector) + Endpoints, port remap 5432 -> 5440 ----------
+# Needed only locally: all three external Postgres share one host (the Mac), so they
+# can't all use 5432. The Endpoints remap keeps the app's DB_URL on 5432.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-monolith
+  namespace: ecommerce
+spec:
+  ports:
+    - port: 5432        # what the app dials
+      targetPort: 5440  # the real port on the host
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: postgres-monolith   # must match the Service name
+  namespace: ecommerce
+subsets:
+  - addresses:
+      - ip: 192.168.65.254   # the Mac, as seen from the minikube node
+    ports:
+      - port: 5440
+---
+# ---------- products: Service (no selector) + Endpoints, port remap 5432 -> 5441 ----------
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-products
+  namespace: ecommerce
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5441
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: postgres-products
+  namespace: ecommerce
+subsets:
+  - addresses:
+      - ip: 192.168.65.254
+    ports:
+      - port: 5441

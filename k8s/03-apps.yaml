@@ -1,0 +1,212 @@
+# The four stateless services: Deployment (the workload) + Service (stable address).
+# Each app reads non-secret config from its ConfigMap (envFrom) and DB credentials
+# from the shared Secret (secretKeyRef). An initContainer waits for the DB so the
+# app doesn't crash-loop on startup. Images were loaded into minikube, so
+# imagePullPolicy: IfNotPresent uses the local copy (no registry needed).
+
+# ---------- monolith (customers) ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monolith
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monolith
+  template:
+    metadata:
+      labels:
+        app: monolith
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres-monolith 5432; do echo "waiting for db"; sleep 2; done']
+      containers:
+        - name: monolith
+          image: spring-boot-0-monolith:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: monolith-config }
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          readinessProbe:
+            tcpSocket: { port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monolith
+  namespace: ecommerce
+spec:
+  selector:
+    app: monolith
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# ---------- product-service ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres-products 5432; do echo "waiting for db"; sleep 2; done']
+      containers:
+        - name: product-service
+          image: spring-boot-0-product-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef: { name: product-service-config }
+          env:
+            - name: DB_USERNAME
+              valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8081 }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8081 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  namespace: ecommerce
+spec:
+  selector:
+    app: product-service
+  ports:
+    - port: 8081
+      targetPort: 8081
+---
+# ---------- order-service ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z postgres-orders 5432; do echo "waiting for db"; sleep 2; done']
+      containers:
+        - name: order-service
+          image: spring-boot-0-order-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef: { name: order-service-config }
+          env:
+            - name: DB_USERNAME
+              valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8082 }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8082 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: ecommerce
+spec:
+  selector:
+    app: order-service
+  ports:
+    - port: 8082
+      targetPort: 8082
+---
+# ---------- gateway (front door) ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+        - name: gateway
+          image: spring-boot-0-gateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef: { name: gateway-config }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8082 }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8082 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: ecommerce
+spec:
+  selector:
+    app: gateway
+  ports:
+    - port: 8082
+      targetPort: 8082
