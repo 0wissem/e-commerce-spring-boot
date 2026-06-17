@@ -1,9 +1,5 @@
 # The four stateless services: Deployment (the workload) + Service (stable address).
-# Each app reads non-secret config from its ConfigMap (envFrom) and DB credentials
-# from the shared Secret (secretKeyRef). An initContainer waits for the DB so the
-# app doesn't crash-loop on startup. Images were loaded into minikube, so
-# imagePullPolicy: IfNotPresent uses the local copy (no registry needed).
-
+# resources (production): requests = scheduler reservation + HPA denominator; limits = ceiling.
 # ---------- monolith (customers) ----------
 apiVersion: apps/v1
 kind: Deployment
@@ -37,6 +33,13 @@ spec:
               valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
           readinessProbe:
             tcpSocket: { port: 8080 }
             initialDelaySeconds: 10
@@ -58,7 +61,7 @@ spec:
     - port: 8080
       targetPort: 8080
 ---
-# ---------- product-service ----------
+# ---------- product-service (the read-heavy service the HPA scales) ----------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -91,6 +94,13 @@ spec:
               valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
           readinessProbe:
             httpGet: { path: /actuator/health, port: 8081 }
             initialDelaySeconds: 10
@@ -145,6 +155,13 @@ spec:
               valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
           readinessProbe:
             httpGet: { path: /actuator/health, port: 8082 }
             initialDelaySeconds: 10
@@ -190,6 +207,13 @@ spec:
             - containerPort: 8082
           envFrom:
             - configMapRef: { name: gateway-config }
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
           readinessProbe:
             httpGet: { path: /actuator/health, port: 8082 }
             initialDelaySeconds: 10
