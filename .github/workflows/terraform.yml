@@ -1,0 +1,70 @@
+name: Terraform (infra)
+
+# GitOps flow:
+#   • Open a PR touching terraform/  → runs `plan` so you review the diff.
+#   • Merge to dev/master           → runs `apply`.
+#   • Manual run (Actions tab)       → choose plan / apply / destroy.
+# Auth is OIDC (assume the bootstrap role) — NO stored secrets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action"
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+  pull_request:
+    branches: [dev, master]
+    paths: ["terraform/**", ".github/workflows/terraform.yml"]
+  push:
+    branches: [dev, master]
+    paths: ["terraform/**", ".github/workflows/terraform.yml"]
+
+permissions:
+  id-token: write # required to request the OIDC token
+  contents: read
+
+defaults:
+  run:
+    working-directory: terraform
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC — no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::110911131381:role/github-actions-terraform
+          aws-region: eu-west-3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        if: github.event_name != 'workflow_dispatch' || inputs.action == 'plan'
+        run: terraform plan -no-color -input=false
+
+      - name: Terraform Apply
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+        run: terraform apply -auto-approve -input=false
+
+      - name: Terraform Destroy
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
+        run: terraform destroy -auto-approve -input=false
