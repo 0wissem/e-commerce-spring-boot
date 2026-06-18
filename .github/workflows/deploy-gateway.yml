@@ -1,14 +1,7 @@
-name: Build and Deploy Gateway to Elastic Beanstalk
+name: Build and Push Gateway to ECR
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Target environment'
-        required: true
-        default: 'preprod'
-        type: choice
-        options: [preprod, prod]
   push:
     branches:
       - master
@@ -17,20 +10,22 @@ on:
       - 'gateway/**'
       - '.github/workflows/deploy-gateway.yml'
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+permissions:
+  id-token: write
+  contents: read
 
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC — no stored keys)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
+          role-to-assume: arn:aws:iam::110911131381:role/github-actions-ecr
+          aws-region: eu-west-3
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -41,72 +36,6 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/gateway:$IMAGE_TAG ./gateway
+          docker build -t $ECR_REGISTRY/gateway:$IMAGE_TAG -t $ECR_REGISTRY/gateway:latest ./gateway
           docker push $ECR_REGISTRY/gateway:$IMAGE_TAG
-
-      - name: Create Dockerrun.aws.json
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          echo '{
-            "AWSEBDockerrunVersion": "1",
-            "Image": {
-              "Name": "'$ECR_REGISTRY'/gateway:'$IMAGE_TAG'",
-              "Update": "true"
-            },
-            "Ports": [
-              {
-                "ContainerPort": 8082
-              }
-            ]
-          }' > Dockerrun.aws.json
-
-      - name: Set environment based on branch
-        run: |
-          IS_PROD="false"
-          if [ "${{ github.ref }}" = "refs/heads/master" ]; then IS_PROD="true"; fi
-          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then IS_PROD="true"; fi
-
-          if [ "$IS_PROD" = "true" ]; then
-            echo "ENV_NAME=${{ secrets.GATEWAY_EB_ENV }}" >> $GITHUB_ENV
-            echo "APP_NAME=gateway" >> $GITHUB_ENV
-            echo "EB_REGION=eu-north-1" >> $GITHUB_ENV
-          else
-            echo "ENV_NAME=${{ secrets.PREPROD_GATEWAY_EB_ENV }}" >> $GITHUB_ENV
-            echo "APP_NAME=preprod" >> $GITHUB_ENV
-            echo "EB_REGION=eu-west-3" >> $GITHUB_ENV
-          fi
-
-      - name: 📋 Deployment target
-        run: |
-          if [ "${{ env.IS_PROD }}" = "true" ]; then
-            echo "Target: GATEWAY → PROD (eu-north-1)"
-          else
-            echo "Target: GATEWAY → PREPROD (eu-west-3)"
-          fi
-
-      - name: Wait for environment to be Ready
-        run: |
-          for i in $(seq 1 20); do
-            STATUS=$(aws elasticbeanstalk describe-environments \
-              --application-name ${{ env.APP_NAME }} \
-              --environment-names ${{ env.ENV_NAME }} \
-              --region ${{ env.EB_REGION }} \
-              --query 'Environments[0].Status' --output text)
-            echo "Status: $STATUS"
-            [ "$STATUS" = "Ready" ] && break
-            sleep 30
-          done
-
-      - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v22
-        with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: ${{ env.EB_REGION }}
-          application_name: ${{ env.APP_NAME }}
-          environment_name: ${{ env.ENV_NAME }}
-          version_label: ${{ github.sha }}-gateway
-          deployment_package: Dockerrun.aws.json
-          use_existing_version_if_available: true
+          docker push $ECR_REGISTRY/gateway:latest

@@ -1,4 +1,4 @@
-name: Build and Push Monolith to ECR
+name: Build and Push Order Service to ECR
 
 on:
   workflow_dispatch:
@@ -7,11 +7,9 @@ on:
       - master
       - dev
     paths:
-      - 'src/**'
-      - 'pom.xml'
-      - 'Dockerfile'
+      - 'order-service/**'
+      - '.github/workflows/deploy-order-service.yml'
 
-# OIDC: lets this workflow request a short-lived token to assume the AWS role.
 permissions:
   id-token: write
   contents: read
@@ -38,6 +36,6 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/spring-boot-0:$IMAGE_TAG -t $ECR_REGISTRY/spring-boot-0:latest .
-          docker push $ECR_REGISTRY/spring-boot-0:$IMAGE_TAG
-          docker push $ECR_REGISTRY/spring-boot-0:latest
+          docker build -t $ECR_REGISTRY/order-service:$IMAGE_TAG -t $ECR_REGISTRY/order-service:latest ./order-service
+          docker push $ECR_REGISTRY/order-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/order-service:latest
