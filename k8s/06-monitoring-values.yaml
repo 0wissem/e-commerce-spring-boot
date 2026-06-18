@@ -1,0 +1,50 @@
+# Helm values for kube-prometheus-stack (observability — Half A: cluster metrics).
+#
+# Installed into the `monitoring` namespace with:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm repo update
+#   helm install monitoring prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace -f k8s/06-monitoring-values.yaml
+#
+# This file is deliberately LEAN — Tuesday's crash loop was a capacity problem, so we
+# cap every component and keep retention short (this is a local learning cluster, not a
+# long-term metrics store). Raise these if you want longer history.
+
+# --- Prometheus: the time-series DB that scrapes and stores metrics ---
+prometheus:
+  prometheusSpec:
+    retention: 2d                 # local cluster — 2 days of history is plenty
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    # Scrape ServiceMonitors/PodMonitors from ALL namespaces, not just ones the chart
+    # labels. This matters for Half B (scraping our ecommerce services later).
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+# --- Grafana: the dashboards UI ---
+grafana:
+  adminPassword: admin            # local only — fine to keep simple
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  # Ships with prebuilt Kubernetes dashboards (cluster/pod CPU+memory) out of the box.
+
+# --- Alertmanager: disabled. We have no alerting story yet; drop the footprint. ---
+alertmanager:
+  enabled: false
+
+# --- node-exporter + kube-state-metrics: KEEP. These power the cluster dashboards
+#     (node-exporter = host CPU/mem/disk; kube-state-metrics = pod/replica/HPA state). ---
+nodeExporter:
+  enabled: true
+kubeStateMetrics:
+  enabled: true
