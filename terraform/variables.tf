@@ -12,3 +12,43 @@ variable "ecr_repositories" {
   type        = list(string)
   default     = ["spring-boot-0", "product-service", "gateway", "order-service"]
 }
+
+# ─── EKS ─────────────────────────────────────────────────────────────────────
+
+variable "cluster_name" {
+  description = "Name of the EKS cluster (also used as a prefix for the VPC)."
+  type        = string
+  default     = "ecommerce"
+}
+
+variable "cluster_version" {
+  description = <<-EOT
+    Kubernetes version for EKS. IMPORTANT: pick a version in STANDARD support.
+    Versions in *extended* support bill the control plane at a MUCH higher rate
+    (~$0.60/hr vs ~$0.10/hr). Check the current supported list in the EKS docs.
+  EOT
+  type        = string
+  default     = "1.32"
+}
+
+variable "node_instance_type" {
+  description = "EC2 instance type for the worker nodes."
+  type        = string
+  default     = "t3.medium"
+}
+
+variable "node_desired_size" {
+  description = "Desired worker node count (max_size = this + 2)."
+  type        = number
+  default     = 2
+}
+
+variable "cluster_admin_principal_arn" {
+  description = <<-EOT
+    IAM principal (your console user) granted cluster-admin via an EKS access
+    entry, so you can run kubectl (e.g. from CloudShell).
+    ⚠️ CONFIRM this matches the IAM username you actually created — change if different.
+  EOT
+  type        = string
+  default     = "arn:aws:iam::110911131381:user/wissem-admin"
+}
