@@ -1,0 +1,175 @@
+# EKS variant: one Postgres per service, using EPHEMERAL emptyDir storage.
+#
+# Why emptyDir and not a PVC like the minikube version? Persistent volumes on EKS
+# need the EBS CSI driver, which we deliberately left OUT of the cluster to keep
+# this first deploy simple. emptyDir lives on the node's disk and is wiped if the
+# pod restarts — which is FINE here, because Flyway recreates the schema + seed
+# data on every boot. (Graduating to RDS or the EBS CSI driver is the prod step.)
+#
+# Kept as a StatefulSet + headless Service so the DNS names (postgres-monolith,
+# postgres-products, postgres-orders) the apps already point at stay identical.
+
+# ---------- monolith DB ----------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-monolith
+  namespace: ecommerce
+spec:
+  serviceName: postgres-monolith
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-monolith
+  template:
+    metadata:
+      labels:
+        app: postgres-monolith
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: monolith
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-monolith
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-monolith
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# ---------- products DB ----------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-products
+  namespace: ecommerce
+spec:
+  serviceName: postgres-products
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-products
+  template:
+    metadata:
+      labels:
+        app: postgres-products
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: products
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-products
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-products
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# ---------- orders DB ----------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-orders
+  namespace: ecommerce
+spec:
+  serviceName: postgres-orders
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-orders
+  template:
+    metadata:
+      labels:
+        app: postgres-orders
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: orders
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: db-credentials, key: username } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-orders
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-orders
+  ports:
+    - port: 5432
+      targetPort: 5432
