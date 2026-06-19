@@ -61,8 +61,11 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.action == 'plan'
         run: terraform plan -no-color -input=false
 
+      # Apply is MANUAL-ONLY (workflow_dispatch → action=apply). A plain push never
+      # auto-creates infrastructure — this prevents accidentally recreating the
+      # billing EKS cluster. Push/PR only run `plan` (read-only, free).
       - name: Terraform Apply
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
         run: terraform apply -auto-approve -input=false
 
       - name: Terraform Destroy
