@@ -1,0 +1,25 @@
+# ArgoCD Application = "watch this Git path and reconcile the cluster to match it."
+# This is the GitOps source of truth: the cluster should look like k8s/ on branch dev.
+#
+# MANUAL sync (no syncPolicy.automated) → ArgoCD shows OutOfSync when live ≠ Git,
+# but waits for you to click "Sync" before changing anything.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ecommerce
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/0wissem/e-commerce-spring-boot.git
+    targetRevision: dev
+    path: k8s
+    directory:
+      recurse: false # ignore the eks/ and argocd/ subdirs
+      # Only the minikube manifests — excludes 04-external-db.yaml (other env) and *.md.
+      include: "{00-namespace.yaml,01-config.yaml,02-postgres.yaml,03-apps.yaml,05-hpa.yaml}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
