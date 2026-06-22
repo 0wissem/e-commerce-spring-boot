@@ -68,7 +68,9 @@ metadata:
   name: product-service
   namespace: ecommerce
 spec:
-  replicas: 1
+  # No replicas here on purpose — the HorizontalPodAutoscaler (05-hpa.yaml) owns
+  # the replica count (min 2 / max 6). Hardcoding it would fight the HPA and show
+  # permanent drift in GitOps. A Deployment managed by an HPA must not set replicas.
   selector:
     matchLabels:
       app: product-service
