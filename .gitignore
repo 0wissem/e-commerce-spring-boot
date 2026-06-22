@@ -34,3 +34,11 @@ build/
 k6/*.pem
 CREDENTIALS.md
 ORDER_SERVICE_PLAN.md
+
+### Terraform ###
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+# keep .terraform.lock.hcl tracked (reproducible provider versions)
