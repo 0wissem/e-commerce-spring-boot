@@ -32,15 +32,15 @@ variable "cluster_version" {
 }
 
 variable "node_instance_type" {
-  description = "EC2 instance type for the worker nodes."
+  description = "EC2 instance type for the worker nodes. t3.micro = free-tier-eligible (no node charge)."
   type        = string
-  default     = "t3.medium"
+  default     = "t3.micro"
 }
 
 variable "node_desired_size" {
-  description = "Desired worker node count (max_size = this + 2)."
+  description = "Desired worker node count (max_size = this + 2). 3x t3.micro to give the stack a chance to fit (nodes are free-tier)."
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "cluster_admin_principal_arn" {
