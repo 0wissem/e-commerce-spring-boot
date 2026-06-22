@@ -23,3 +23,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: ecommerce
+
+  # The HPA owns product-service's replica count. Git doesn't set replicas, but the
+  # HPA sets it to 2+ live — so tell ArgoCD to ignore that field, otherwise it would
+  # report permanent drift (and, with self-heal on, fight the HPA). The canonical
+  # ArgoCD-with-HPA fix.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: product-service
+      namespace: ecommerce
+      jsonPointers:
+        - /spec/replicas
