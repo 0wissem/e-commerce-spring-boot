@@ -42,7 +42,15 @@ jobs:
           kubectl apply -f k8s/eks/config.yaml
           # DBs are external (RDS) now — remove any in-cluster Postgres to free pod slots
           kubectl delete -f k8s/eks/postgres.yaml --ignore-not-found
+          # t3.micro is pod-slot constrained: free one by running a single CoreDNS replica
+          kubectl scale deployment coredns -n kube-system --replicas=1 || true
+          # clear any stuck Pending pods from earlier attempts
+          kubectl delete pods -n ecommerce --field-selector=status.phase=Pending --ignore-not-found || true
           kubectl apply -f k8s/eks/apps.yaml
+          # Recreate strategy = no surge pods during restart (we have no spare slots)
+          for d in monolith product-service order-service gateway; do
+            kubectl patch deployment "$d" -n ecommerce -p '{"spec":{"strategy":{"type":"Recreate"}}}' || true
+          done
           # restart so the apps pick up the RDS endpoints from the new config
           kubectl rollout restart deployment -n ecommerce
 
