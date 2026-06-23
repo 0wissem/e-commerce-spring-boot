@@ -1,0 +1,48 @@
+name: Deploy app to EKS
+
+# Manual-only. Deploys the k8s/eks manifests to the EKS cluster from CI, using the
+# OIDC terraform role (which is the cluster's admin). Removes the need for CloudShell.
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::110911131381:role/github-actions-terraform
+          aws-region: eu-west-3
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Point kubectl at the cluster
+        run: aws eks update-kubeconfig --name ecommerce --region eu-west-3
+
+      - name: Deploy manifests
+        run: |
+          kubectl apply -f k8s/00-namespace.yaml
+          kubectl apply -f k8s/01-config.yaml
+          kubectl apply -f k8s/eks/postgres.yaml
+          kubectl apply -f k8s/eks/apps.yaml
+
+      - name: Show state (and explain any non-Running pods)
+        run: |
+          echo "=== nodes ==="
+          kubectl get nodes -o wide
+          echo "=== pods ==="
+          sleep 40
+          kubectl get pods -n ecommerce -o wide
+          echo "=== events for any non-Running pod ==="
+          kubectl get pods -n ecommerce --no-headers | grep -v ' Running ' | awk '{print $1}' | while read p; do
+            echo "### $p"; kubectl describe pod "$p" -n ecommerce | grep -A6 Events:
+          done || true
