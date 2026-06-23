@@ -38,9 +38,9 @@ variable "node_instance_type" {
 }
 
 variable "node_desired_size" {
-  description = "Desired worker node count (max_size = this + 2). 3x t3.micro to give the stack a chance to fit (nodes are free-tier)."
+  description = "Desired worker node count (max_size = this + 2). 6x t3.micro: 1 GiB nodes fit ~1 Spring pod each, so the 7-pod stack needs ~6 nodes (all free-tier)."
   type        = number
-  default     = 3
+  default     = 6
 }
 
 variable "cluster_admin_principal_arn" {
