@@ -34,7 +34,6 @@ module "eks" {
     # vpc-cni with PREFIX DELEGATION: raises the per-node pod limit on small
     # instances (t3.micro ~4 → ~110) so the full stack can fit on free nodes.
     vpc-cni = {
-      before_compute = true
       configuration_values = jsonencode({
         env = {
           ENABLE_PREFIX_DELEGATION = "true"
