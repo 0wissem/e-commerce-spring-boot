@@ -1,7 +1,17 @@
-# RDS PostgreSQL — ONE db.t3.micro (free-tier), hosting 3 databases for the
-# services. Moving the DBs OUT of the cluster frees pod slots on the tiny EKS
-# nodes so the 4 app pods fit. RDS uses a SEPARATE quota (not the EC2 vCPU limit
-# that blocked node scaling). Shared-server trade-off vs per-service DBs — free.
+# RDS PostgreSQL — ONE db.t3.micro per service (per-service DB server = the
+# project's design: independent failure domains). Moving the DBs OUT of the
+# cluster frees pod slots on the tiny EKS nodes so the 4 app pods fit. RDS uses a
+# SEPARATE quota (not the EC2 vCPU limit). For short tear-down-after sessions this
+# stays within the RDS free-tier hours; any overage is on credit, not real money.
+
+locals {
+  # service name -> database name (each gets its own RDS instance)
+  service_databases = {
+    monolith = "monolith"
+    products = "products"
+    orders   = "orders"
+  }
+}
 
 resource "aws_db_subnet_group" "main" {
   name       = "${var.cluster_name}-db"
@@ -28,14 +38,16 @@ resource "aws_security_group" "rds" {
   }
 }
 
-resource "aws_db_instance" "main" {
-  identifier        = var.cluster_name
+resource "aws_db_instance" "service" {
+  for_each = local.service_databases
+
+  identifier        = "${var.cluster_name}-${each.key}"
   engine            = "postgres"
   engine_version    = "16"
   instance_class    = "db.t3.micro" # free-tier-eligible
-  allocated_storage = 20            # free-tier (20 GB)
+  allocated_storage = 20
 
-  db_name  = "monolith" # initial DB; products + orders created by the init Job
+  db_name  = each.value # this instance's own database
   username = "postgres"
   password = var.db_password
 
@@ -45,7 +57,7 @@ resource "aws_db_instance" "main" {
   skip_final_snapshot    = true
 }
 
-output "rds_address" {
-  description = "RDS endpoint host (used in the app DB URLs)."
-  value       = aws_db_instance.main.address
+output "rds_addresses" {
+  description = "Per-service RDS endpoint hosts (used in each app's DB URL)."
+  value       = { for svc, db in aws_db_instance.service : svc => db.address }
 }
