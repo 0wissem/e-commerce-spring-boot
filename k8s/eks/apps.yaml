@@ -19,10 +19,6 @@ spec:
       labels:
         app: monolith
     spec:
-      initContainers:
-        - name: wait-for-db
-          image: busybox:1.36
-          command: ['sh', '-c', 'until nc -z postgres-monolith 5432; do echo "waiting for db"; sleep 2; done']
       containers:
         - name: monolith
           image: 110911131381.dkr.ecr.eu-west-3.amazonaws.com/spring-boot-0:latest
@@ -80,10 +76,6 @@ spec:
       labels:
         app: product-service
     spec:
-      initContainers:
-        - name: wait-for-db
-          image: busybox:1.36
-          command: ['sh', '-c', 'until nc -z postgres-products 5432; do echo "waiting for db"; sleep 2; done']
       containers:
         - name: product-service
           image: 110911131381.dkr.ecr.eu-west-3.amazonaws.com/product-service:latest
@@ -141,10 +133,6 @@ spec:
       labels:
         app: order-service
     spec:
-      initContainers:
-        - name: wait-for-db
-          image: busybox:1.36
-          command: ['sh', '-c', 'until nc -z postgres-orders 5432; do echo "waiting for db"; sleep 2; done']
       containers:
         - name: order-service
           image: 110911131381.dkr.ecr.eu-west-3.amazonaws.com/order-service:latest

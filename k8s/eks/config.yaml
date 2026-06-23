@@ -1,0 +1,52 @@
+# EKS-specific config: each service points at its OWN RDS instance (per-service
+# DB server). Separate from k8s/01-config.yaml (which keeps minikube on in-cluster
+# Postgres). The DB hosts are the 3 RDS endpoints from Terraform.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+  namespace: ecommerce
+type: Opaque
+stringData:
+  username: postgres
+  password: PostgresEks2026 # RDS master password (matches terraform var.db_password)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monolith-config
+  namespace: ecommerce
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  SPRING_DATASOURCE_URL: jdbc:postgresql://ecommerce-monolith.cdgu8au04ibz.eu-west-3.rds.amazonaws.com:5432/monolith
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: product-service-config
+  namespace: ecommerce
+data:
+  DB_URL: jdbc:postgresql://ecommerce-products.cdgu8au04ibz.eu-west-3.rds.amazonaws.com:5432/products
+  KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+  KAFKA_API_KEY: dummy
+  KAFKA_API_SECRET: dummy
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-config
+  namespace: ecommerce
+data:
+  DB_URL: jdbc:postgresql://ecommerce-orders.cdgu8au04ibz.eu-west-3.rds.amazonaws.com:5432/orders
+  PRODUCT_SERVICE_URL: http://product-service:8081
+  CUSTOMER_SERVICE_URL: http://monolith:8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+  namespace: ecommerce
+data:
+  MONOLITH_URL: http://monolith:8080
+  PRODUCT_SERVICE_URL: http://product-service:8081
+  ORDER_SERVICE_URL: http://order-service:8082
