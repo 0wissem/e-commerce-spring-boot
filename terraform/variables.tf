@@ -43,6 +43,12 @@ variable "node_desired_size" {
   default     = 6
 }
 
+variable "db_password" {
+  description = "RDS master password (learning setup; RDS needs 8+ chars, no / @ \" or spaces)."
+  type        = string
+  default     = "PostgresEks2026"
+}
+
 variable "cluster_admin_principal_arn" {
   description = <<-EOT
     IAM principal (your console user) granted cluster-admin via an EKS access
