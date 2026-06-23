@@ -24,16 +24,7 @@ jobs:
           aws-region: eu-west-3
       - uses: azure/setup-kubectl@v4
       - run: aws eks update-kubeconfig --name ecommerce --region eu-west-3
-      - name: Activate prefix delegation (restart CNI) + recreate stuck pods
-        run: |
-          # restart aws-node so it picks up ENABLE_PREFIX_DELEGATION and hands out
-          # /28 IP prefixes (way more pod IPs per t3.micro)
-          kubectl rollout restart daemonset aws-node -n kube-system
-          kubectl rollout status daemonset aws-node -n kube-system --timeout=180s || true
-          # recreate any pod stuck without an IP so it retries against the new prefixes
-          kubectl delete pods -n ecommerce --field-selector=status.phase!=Running --ignore-not-found || true
-          sleep 90
-      - name: Pods + events + API smoke (no deploy)
+      - name: Pods + events + API smoke (read-only)
         run: |
           kubectl get pods -n ecommerce -o wide
           echo "=== events for any non-Running pod ==="
