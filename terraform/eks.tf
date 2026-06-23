@@ -31,7 +31,17 @@ module "eks" {
   cluster_addons = {
     coredns    = {} # in-cluster DNS
     kube-proxy = {} # pod networking rules
-    vpc-cni    = {} # the AWS CNI that gives pods VPC IPs
+    # vpc-cni with PREFIX DELEGATION: raises the per-node pod limit on small
+    # instances (t3.micro ~4 → ~110) so the full stack can fit on free nodes.
+    vpc-cni = {
+      before_compute = true
+      configuration_values = jsonencode({
+        env = {
+          ENABLE_PREFIX_DELEGATION = "true"
+          WARM_PREFIX_TARGET       = "1"
+        }
+      })
+    }
   }
 
   # One managed node group of on-demand workers.
@@ -44,6 +54,21 @@ module "eks" {
       min_size     = 2
       desired_size = var.node_desired_size
       max_size     = var.node_desired_size + 2
+
+      # Raise the kubelet pod cap (default ~4 on t3.micro). Pairs with the CNI
+      # prefix delegation above so each node can actually run more pods.
+      # AL2023 nodes are configured via nodeadm.
+      cloudinit_pre_nodeadm = [{
+        content_type = "application/node.eks.aws"
+        content      = <<-EOT
+          apiVersion: node.eks.aws/v1alpha1
+          kind: NodeConfig
+          spec:
+            kubelet:
+              config:
+                maxPods: 110
+        EOT
+      }]
     }
   }
 
