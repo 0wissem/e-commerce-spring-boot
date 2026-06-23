@@ -54,3 +54,17 @@ jobs:
           kubectl get pods -n ecommerce --no-headers | grep -v ' Running ' | awk '{print $1}' | while read p; do
             echo "### $p"; kubectl describe pod "$p" -n ecommerce | grep -A6 Events:
           done || true
+
+      - name: Smoke test APIs (port-forward from runner — only Running services respond)
+        run: |
+          test_svc() { # name svc port path
+            kubectl port-forward -n ecommerce "svc/$2" "$3:$3" >/dev/null 2>&1 &
+            pid=$!; sleep 5
+            echo "--- $1 ($4) ---"
+            curl -s -m 10 -w "\n[HTTP %{http_code}]\n" "http://localhost:$3$4" 2>&1 | head -c 400 || echo "unreachable (pod Pending?)"
+            echo; kill $pid 2>/dev/null
+          }
+          test_svc monolith        monolith        8080 /api/customers
+          test_svc product-service product-service 8081 /api/products
+          test_svc order-service   order-service   8082 /api/orders
+          test_svc gateway         gateway         8082 /api/products || true
