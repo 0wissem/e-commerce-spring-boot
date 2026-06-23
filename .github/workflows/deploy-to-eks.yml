@@ -1,9 +1,17 @@
 name: Deploy app to EKS
 
-# Manual-only. Deploys the k8s/eks manifests to the EKS cluster from CI, using the
-# OIDC terraform role (which is the cluster's admin). Removes the need for CloudShell.
+# Deploys the k8s/eks manifests to the EKS cluster from CI, using the OIDC terraform
+# role (which is the cluster's admin). Removes the need for CloudShell.
+# Runs on push to dev when the manifests (or this file) change = a real CD step.
 on:
   workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - "k8s/eks/**"
+      - "k8s/00-namespace.yaml"
+      - "k8s/01-config.yaml"
+      - ".github/workflows/deploy-to-eks.yml"
 
 permissions:
   id-token: write
