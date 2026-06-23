@@ -39,9 +39,11 @@ module "eks" {
   eks_managed_node_groups = {
     default = {
       instance_types = [var.node_instance_type]
-      min_size       = var.node_desired_size
-      desired_size   = var.node_desired_size
-      max_size       = var.node_desired_size + 2
+      # min decoupled from desired: EKS rejects raising min above the current
+      # desired in one update, and min doesn't need to equal desired anyway.
+      min_size     = 2
+      desired_size = var.node_desired_size
+      max_size     = var.node_desired_size + 2
     }
   }
 
