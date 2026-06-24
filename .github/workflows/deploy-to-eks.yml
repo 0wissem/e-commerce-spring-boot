@@ -39,15 +39,37 @@ jobs:
       - name: Deploy manifests
         run: |
           kubectl apply -f k8s/00-namespace.yaml
-          kubectl apply -f k8s/eks/config.yaml
-          # DBs are external (RDS) now — remove any in-cluster Postgres to free pod slots
-          kubectl delete -f k8s/eks/postgres.yaml --ignore-not-found
-          # t3.micro is pod-slot constrained: free one by running a single CoreDNS replica
+          # Fetch LIVE RDS endpoints (they change on every recreate) and build config from them
+          MONO=$(aws rds describe-db-instances --db-instance-identifier ecommerce-monolith --query 'DBInstances[0].Endpoint.Address' --output text)
+          PROD=$(aws rds describe-db-instances --db-instance-identifier ecommerce-products --query 'DBInstances[0].Endpoint.Address' --output text)
+          ORDR=$(aws rds describe-db-instances --db-instance-identifier ecommerce-orders --query 'DBInstances[0].Endpoint.Address' --output text)
+          echo "RDS endpoints: $MONO | $PROD | $ORDR"
+          kubectl create secret generic db-credentials -n ecommerce \
+            --from-literal=username=postgres --from-literal=password=PostgresEks2026 \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create configmap monolith-config -n ecommerce \
+            --from-literal=SPRING_PROFILES_ACTIVE=prod \
+            --from-literal=SPRING_DATASOURCE_URL="jdbc:postgresql://$MONO:5432/monolith" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create configmap product-service-config -n ecommerce \
+            --from-literal=DB_URL="jdbc:postgresql://$PROD:5432/products" \
+            --from-literal=KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
+            --from-literal=KAFKA_API_KEY=dummy --from-literal=KAFKA_API_SECRET=dummy \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create configmap order-service-config -n ecommerce \
+            --from-literal=DB_URL="jdbc:postgresql://$ORDR:5432/orders" \
+            --from-literal=PRODUCT_SERVICE_URL=http://product-service:8081 \
+            --from-literal=CUSTOMER_SERVICE_URL=http://monolith:8080 \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create configmap gateway-config -n ecommerce \
+            --from-literal=MONOLITH_URL=http://monolith:8080 \
+            --from-literal=PRODUCT_SERVICE_URL=http://product-service:8081 \
+            --from-literal=ORDER_SERVICE_URL=http://order-service:8082 \
+            --dry-run=client -o yaml | kubectl apply -f -
+          # tiny-node fit: one CoreDNS replica frees a pod slot
           kubectl scale deployment coredns -n kube-system --replicas=1 || true
-          # CLEAN SLATE: drop old app deployments (clears ReplicaSet sprawl from retries),
-          # then re-create fresh so exactly 4 pods land in the freed slots.
+          # clean slate then deploy the 4 services
           kubectl delete deployment monolith product-service order-service gateway -n ecommerce --ignore-not-found
-          kubectl delete pods -n ecommerce --field-selector=status.phase=Pending --ignore-not-found || true
           kubectl apply -f k8s/eks/apps.yaml
 
       - name: Show state (and explain any non-Running pods)
