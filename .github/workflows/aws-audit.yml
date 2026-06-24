@@ -1,0 +1,38 @@
+name: AWS resource audit
+
+# Lists cost-relevant AWS resources to confirm nothing is left running.
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths: [".github/workflows/aws-audit.yml"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      R: eu-west-3
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::110911131381:role/github-actions-terraform
+          aws-region: eu-west-3
+      - name: Audit billable resources (eu-west-3 + global)
+        run: |
+          echo "### Account: $(aws sts get-caller-identity --query Account --output text)"
+          echo "## EKS clusters";        aws eks list-clusters --region $R --query clusters --output text || true
+          echo "## EC2 instances (non-terminated)"; aws ec2 describe-instances --region $R --filters Name=instance-state-name,Values=pending,running,stopping,stopped --query 'Reservations[].Instances[].[InstanceId,InstanceType,State.Name]' --output text || true
+          echo "## RDS instances";        aws rds describe-db-instances --region $R --query 'DBInstances[].DBInstanceIdentifier' --output text || true
+          echo "## Load balancers (v2)";  aws elbv2 describe-load-balancers --region $R --query 'LoadBalancers[].LoadBalancerName' --output text || true
+          echo "## Load balancers (classic)"; aws elb describe-load-balancers --region $R --query 'LoadBalancerDescriptions[].LoadBalancerName' --output text || true
+          echo "## NAT gateways (active)"; aws ec2 describe-nat-gateways --region $R --filter Name=state,Values=pending,available --query 'NatGateways[].NatGatewayId' --output text || true
+          echo "## Elastic IPs";          aws ec2 describe-addresses --region $R --query 'Addresses[].PublicIp' --output text || true
+          echo "## EBS volumes";          aws ec2 describe-volumes --region $R --query 'Volumes[].VolumeId' --output text || true
+          echo "## ECR repositories";     aws ecr describe-repositories --region $R --query 'repositories[].repositoryName' --output text || true
+          echo "## S3 buckets (global)";  aws s3 ls || true
+          echo "=== anything listed above (besides the S3 state bucket) = still exists ==="
