@@ -24,10 +24,11 @@
   - [x] `ProductServiceTest` (5 tests: stubbing, exception, verify/never, soft-delete, real mapper) ✅ 2026-06-26
   - [ ] `ProductMapperTest` (categories mapping, finalPrice rule)
   - [ ] then replicate to order-service / monolith
-- [ ] **Repository slice tests** — `@DataJpaTest` against an in-memory or Testcontainers Postgres.
+- [x] **Persistence tests** — real Postgres via Testcontainers ✅ 2026-06-26 (`@DataJpaTest` slice isn't on the Boot 4 classpath → used `@SpringBootTest`).
 - [x] **Controller (web) tests** — MockMvc: request/response, validation→400, error shapes ✅ 2026-06-26
   - `ProductControllerTest` (4 tests, standalone MockMvc — the `@WebMvcTest` slice was moved out of starter-test in Boot 4.0; on Boot 3.x use `@WebMvcTest` + `@MockitoBean`).
-- [ ] **Integration tests** — `@SpringBootTest` + **Testcontainers** (real Postgres). The gold standard; strong interview signal.
+- [x] **Integration tests** — `@SpringBootTest` + **Testcontainers** (real Postgres) ✅ 2026-06-26
+  - `ProductJpaRepositoryTest` (4: save/find, findByNameIgnoreCase, **full-text tsvector search**, soft-delete via @SQLRestriction) + `AbstractIntegrationTest` (singleton-container base) + Flyway runs the real schema. Key learnings: why Testcontainers > H2, @DynamicPropertySource, @Transactional rollback, the 1st-level-cache flush/clear subtlety.
 - [ ] **Add a `test` stage to the CI pipelines** — `mvn test` as a gate before build (closes the CI/CD scorecard gap too).
 - [ ] **Talking points to nail:** test pyramid, mock vs stub vs fake, `@Mock` vs `@SpringBootTest`, why Testcontainers > H2.
 
@@ -76,3 +77,4 @@
 - 2026-06-24 — Plan created. Pivoted from infra/DevOps back to backend Java/Spring for technical-test prep. Next: Phase 1 (testing), starting with product-service.
 - 2026-06-26 — Phase 1 started. `ProductServiceTest` written + green (5 tests). Covered: AAA, @Mock/@ExtendWith, stubbing (thenReturn/thenAnswer), state vs interaction assertions (verify/never/verifyNoInteractions), assertThatThrownBy, real-mapper-not-mocked.
 - 2026-06-26 — `ProductControllerTest` written + green (4 tests, MockMvc). Covered: MockMvc perform/andExpect, status + jsonPath, exception→404 via @RestControllerAdvice, the validation→400 flow (@Valid → MethodArgumentNotValidException → handler). Used standalone MockMvc (Boot 4 moved @WebMvcTest out of starter-test). Next: C — persistence (`@DataJpaTest` → Testcontainers).
+- 2026-06-26 — C done. `ProductJpaRepositoryTest` (4) + `AbstractIntegrationTest` (singleton Postgres container) green against real Postgres + Flyway schema. Covered: Testcontainers vs H2 (tsvector full-text search only runs on real PG), @DynamicPropertySource, @Transactional rollback, Hibernate 1st-level-cache (flush/clear), @SQLRestriction soft-delete. **Full product-service suite: 14 tests green.** Note: Boot 4.0 split all test slices (@WebMvcTest/@DataJpaTest) into per-tech modules not on the classpath — used standalone MockMvc + @SpringBootTest; on Boot 3.x (most interviews) use the slices. Next: CI test stage, or Phase 2 (transactions/JPA pitfalls).
