@@ -20,9 +20,13 @@
 ## Phase 1 — Testing layer ⭐ THE priority (biggest gap + most-tested skill)
 *The project has zero automated tests. Interviewers probe this hardest, and writing tests forces deep understanding of the code.*
 
-- [ ] **Unit tests** — JUnit 5 + Mockito. Services + mappers (e.g. `OrderService`, `OrderMapper`). Mock the repository ports.
+- [~] **Unit tests** — JUnit 5 + Mockito. Services + mappers. Mock the repository ports.
+  - [x] `ProductServiceTest` (5 tests: stubbing, exception, verify/never, soft-delete, real mapper) ✅ 2026-06-26
+  - [ ] `ProductMapperTest` (categories mapping, finalPrice rule)
+  - [ ] then replicate to order-service / monolith
 - [ ] **Repository slice tests** — `@DataJpaTest` against an in-memory or Testcontainers Postgres.
-- [ ] **Controller slice tests** — `@WebMvcTest` + `MockMvc` (request/response, validation, error shapes).
+- [x] **Controller (web) tests** — MockMvc: request/response, validation→400, error shapes ✅ 2026-06-26
+  - `ProductControllerTest` (4 tests, standalone MockMvc — the `@WebMvcTest` slice was moved out of starter-test in Boot 4.0; on Boot 3.x use `@WebMvcTest` + `@MockitoBean`).
 - [ ] **Integration tests** — `@SpringBootTest` + **Testcontainers** (real Postgres). The gold standard; strong interview signal.
 - [ ] **Add a `test` stage to the CI pipelines** — `mvn test` as a gate before build (closes the CI/CD scorecard gap too).
 - [ ] **Talking points to nail:** test pyramid, mock vs stub vs fake, `@Mock` vs `@SpringBootTest`, why Testcontainers > H2.
@@ -70,3 +74,5 @@
 
 ## Progress log
 - 2026-06-24 — Plan created. Pivoted from infra/DevOps back to backend Java/Spring for technical-test prep. Next: Phase 1 (testing), starting with product-service.
+- 2026-06-26 — Phase 1 started. `ProductServiceTest` written + green (5 tests). Covered: AAA, @Mock/@ExtendWith, stubbing (thenReturn/thenAnswer), state vs interaction assertions (verify/never/verifyNoInteractions), assertThatThrownBy, real-mapper-not-mocked.
+- 2026-06-26 — `ProductControllerTest` written + green (4 tests, MockMvc). Covered: MockMvc perform/andExpect, status + jsonPath, exception→404 via @RestControllerAdvice, the validation→400 flow (@Valid → MethodArgumentNotValidException → handler). Used standalone MockMvc (Boot 4 moved @WebMvcTest out of starter-test). Next: C — persistence (`@DataJpaTest` → Testcontainers).
