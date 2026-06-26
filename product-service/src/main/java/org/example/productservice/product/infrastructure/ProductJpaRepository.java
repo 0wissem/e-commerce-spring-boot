@@ -3,15 +3,26 @@ package org.example.productservice.product.infrastructure;
 import org.example.productservice.product.domain.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 interface ProductJpaRepository extends JpaRepository<Product, String> {
 
     Optional<Product> findByNameIgnoreCase(String name);
+
+    /**
+     * N+1 fix: fetch each product's categories in the SAME query via an entity graph
+     * (a fetch join), instead of one lazy query per product. DISTINCT removes the row
+     * duplication a join over a @ManyToMany produces.
+     */
+    @EntityGraph(attributePaths = "categories")
+    @Query("SELECT DISTINCT p FROM Product p")
+    List<Product> findAllWithCategories();
 
     @Query(
         value = """

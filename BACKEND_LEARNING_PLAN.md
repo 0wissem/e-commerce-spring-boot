@@ -38,7 +38,9 @@
 
 ## Phase 2 — Spring deep-dives (classic test topics, exercised on the project)
 - [ ] **`@Transactional`** — propagation (REQUIRED/REQUIRES_NEW), isolation, rollback rules, self-invocation pitfall. Exercise: order-creation flow.
-- [ ] **Spring Data JPA pitfalls** — N+1 problem (detect + fix with fetch joins / `@EntityGraph`), lazy vs eager, `@Query`, pagination. Exercise: product/category queries.
+- [~] **Spring Data JPA pitfalls** — N+1 problem, lazy vs eager, `@Query`, pagination.
+  - [x] **N+1** demonstrated + fixed ✅ 2026-06-26 — `ProductNPlusOneTest` measures query counts via Hibernate Statistics: `findAll()` = 1+N, `findAllWithCategories()` (`@EntityGraph` fetch join + DISTINCT) = 1. Talking points: detect (show-sql/Statistics/p6spy), fix (@EntityGraph/@BatchSize/2-step), pitfalls (DISTINCT, fetch-join+pagination warning, cartesian explosion).
+  - [ ] lazy vs eager deep-dive, `@BatchSize`, pagination edge cases (optional)
 - [ ] **Bean lifecycle & DI** — scopes, `@PostConstruct`, constructor injection, `@Conditional`, configuration.
 - [ ] **Spring Security (backend)** — proper server-side auth, JWT validation filter, method security (`@PreAuthorize`). Exercise: secure the APIs server-side (currently auth is frontend-side).
 - [ ] **Caching** — Spring Cache abstraction (`@Cacheable`), eviction. Exercise: product reads.
@@ -78,3 +80,4 @@
 - 2026-06-26 — Phase 1 started. `ProductServiceTest` written + green (5 tests). Covered: AAA, @Mock/@ExtendWith, stubbing (thenReturn/thenAnswer), state vs interaction assertions (verify/never/verifyNoInteractions), assertThatThrownBy, real-mapper-not-mocked.
 - 2026-06-26 — `ProductControllerTest` written + green (4 tests, MockMvc). Covered: MockMvc perform/andExpect, status + jsonPath, exception→404 via @RestControllerAdvice, the validation→400 flow (@Valid → MethodArgumentNotValidException → handler). Used standalone MockMvc (Boot 4 moved @WebMvcTest out of starter-test). Next: C — persistence (`@DataJpaTest` → Testcontainers).
 - 2026-06-26 — C done. `ProductJpaRepositoryTest` (4) + `AbstractIntegrationTest` (singleton Postgres container) green against real Postgres + Flyway schema. Covered: Testcontainers vs H2 (tsvector full-text search only runs on real PG), @DynamicPropertySource, @Transactional rollback, Hibernate 1st-level-cache (flush/clear), @SQLRestriction soft-delete. **Full product-service suite: 14 tests green.** Note: Boot 4.0 split all test slices (@WebMvcTest/@DataJpaTest) into per-tech modules not on the classpath — used standalone MockMvc + @SpringBootTest; on Boot 3.x (most interviews) use the slices. Next: CI test stage, or Phase 2 (transactions/JPA pitfalls).
+- 2026-06-26 — Phase 2 started: **N+1** demonstrated + fixed on Product.categories (`ProductNPlusOneTest`, query-counted via Hibernate Statistics; added `findAllWithCategories()` with `@EntityGraph`). 16 product-service tests green. Next Phase 2: `@Transactional` (propagation/isolation/rollback/self-invocation) on the order-creation flow, then Spring Security / caching.
