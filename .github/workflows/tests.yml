@@ -1,0 +1,31 @@
+name: Tests (mvn test)
+
+# CI gate: run the test suite of every service on each push / PR. Testcontainers works
+# on the ubuntu runner (Docker is preinstalled). A failing test turns the check red.
+on:
+  push:
+    branches: [dev, master]
+  pull_request:
+    branches: [dev, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [".", "product-service", "order-service"] # "." = the monolith (repo root)
+    name: test (${{ matrix.service }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run tests
+        working-directory: ${{ matrix.service }}
+        run: ./mvnw -B test
