@@ -29,7 +29,7 @@
   - `ProductControllerTest` (4 tests, standalone MockMvc — the `@WebMvcTest` slice was moved out of starter-test in Boot 4.0; on Boot 3.x use `@WebMvcTest` + `@MockitoBean`).
 - [x] **Integration tests** — `@SpringBootTest` + **Testcontainers** (real Postgres) ✅ 2026-06-26
   - `ProductJpaRepositoryTest` (4: save/find, findByNameIgnoreCase, **full-text tsvector search**, soft-delete via @SQLRestriction) + `AbstractIntegrationTest` (singleton-container base) + Flyway runs the real schema. Key learnings: why Testcontainers > H2, @DynamicPropertySource, @Transactional rollback, the 1st-level-cache flush/clear subtlety.
-- [ ] **Add a `test` stage to the CI pipelines** — `mvn test` as a gate before build (closes the CI/CD scorecard gap too).
+- [x] **CI test gate** ✅ 2026-06-29 — `.github/workflows/tests.yml` runs `mvn test` for all 3 services (matrix) on every push/PR; Testcontainers works on the ubuntu runner. + JaCoCo coverage on all 3 (product 64%, order 65%, monolith 69%). 48 tests total. (Optional: branch protection to make the check *required* to merge.)
 - [ ] **Talking points to nail:** test pyramid, mock vs stub vs fake, `@Mock` vs `@SpringBootTest`, why Testcontainers > H2.
 
 **Start here:** full test suite for **one service (product-service)** as the template → replicate to the others.
