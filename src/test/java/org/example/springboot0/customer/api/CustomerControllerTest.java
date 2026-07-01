@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.springboot0.customer.application.ICustomerService;
 import org.example.springboot0.customer.application.dto.CustomerRequest;
 import org.example.springboot0.customer.application.dto.CustomerResponse;
+import org.example.springboot0.customer.domain.Role;
 import org.example.springboot0.shared.exception.GlobalExceptionHandler;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +46,7 @@ class CustomerControllerTest {
     @DisplayName("GET /api/customers/{id} → 200 with the customer JSON")
     void getById_returns200() throws Exception {
         when(customerService.getById("c1"))
-                .thenReturn(new CustomerResponse("c1", "Alice", "alice@example.com"));
+                .thenReturn(new CustomerResponse("c1", "Alice", "alice@example.com", Role.CONSUMER));
 
         mockMvc.perform(get("/api/customers/c1"))
                 .andExpect(status().isOk())
@@ -68,7 +69,7 @@ class CustomerControllerTest {
     @DisplayName("POST /api/customers → 201 when the body is valid")
     void create_returns201() throws Exception {
         when(customerService.create(any()))
-                .thenReturn(new CustomerResponse("c2", "Bob", "bob@example.com"));
+                .thenReturn(new CustomerResponse("c2", "Bob", "bob@example.com", Role.CONSUMER));
         CustomerRequest request = new CustomerRequest("Bob", "bob@example.com");
 
         mockMvc.perform(post("/api/customers")

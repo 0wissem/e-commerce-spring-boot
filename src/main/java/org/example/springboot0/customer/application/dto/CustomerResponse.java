@@ -1,3 +1,5 @@
 package org.example.springboot0.customer.application.dto;
 
-public record CustomerResponse(String id, String name, String email) {}
+import org.example.springboot0.customer.domain.Role;
+
+public record CustomerResponse(String id, String name, String email, Role role) {}

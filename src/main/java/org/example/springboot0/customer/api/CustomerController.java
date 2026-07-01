@@ -8,6 +8,7 @@ import org.example.springboot0.shared.response.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -47,6 +48,7 @@ public class CustomerController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')") // only admins may delete users
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String id) {
         customerService.delete(id);
         return ResponseEntity.ok(ApiResponse.ok("Customer deleted", null));
