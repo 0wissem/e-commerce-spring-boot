@@ -67,6 +67,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-monolith:5432/monolith
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      # Shared JWT signing/validation secret — the SAME value across all 3 services.
+      # Override in a real deploy: `export JWT_SECRET=...` (or a .env file) before `compose up`.
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-please-0123456789abcdef0123456789abcdef}
     ports:
       - "8080:8080"
     depends_on:
@@ -83,6 +86,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: localhost:9092
       KAFKA_API_KEY: dummy
       KAFKA_API_SECRET: dummy
+      # Same shared secret as the monolith → validates its JWTs.
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-please-0123456789abcdef0123456789abcdef}
     ports:
       - "8081:8081"
     depends_on:
@@ -97,6 +102,8 @@ services:
       DB_PASSWORD: postgres
       PRODUCT_SERVICE_URL: http://product-service:8081
       CUSTOMER_SERVICE_URL: http://monolith:8080
+      # Same shared secret as the monolith → validates its JWTs.
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-please-0123456789abcdef0123456789abcdef}
     ports:
       - "8082:8082"
     depends_on:
