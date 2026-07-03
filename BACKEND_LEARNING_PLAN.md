@@ -43,7 +43,7 @@
   - [ ] lazy vs eager deep-dive, `@BatchSize`, pagination edge cases (optional)
 - [ ] **Bean lifecycle & DI** — scopes, `@PostConstruct`, constructor injection, `@Conditional`, configuration.
 - [ ] **Spring Security (backend)** — proper server-side auth, JWT validation filter, method security (`@PreAuthorize`). Exercise: secure the APIs server-side (currently auth is frontend-side).
-- [ ] **Caching** — Spring Cache abstraction (`@Cacheable`), eviction. Exercise: product reads.
+- [x] **Caching** ✅ 2026-07-03 — product-service `getById` `@Cacheable("products")`, `@CacheEvict` on update/delete; Caffeine backend (TTL 10min + max 10k). `ProductCacheTest` proves it by counting DB reads (2 reads → 1 findById; update evicts → re-read). Talking points: proxy-based (self-invocation caveat like @Transactional), bounded caches (TTL/size or leak+staleness), providers simple/Caffeine/Redis (distributed for multi-instance), cache invalidation is the hard part.
 - [ ] **Validation & global error handling** — already present (`GlobalExceptionHandler`); be able to explain it cold.
 
 ---

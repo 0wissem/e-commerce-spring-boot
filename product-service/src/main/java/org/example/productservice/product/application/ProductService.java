@@ -10,6 +10,8 @@ import org.example.productservice.product.domain.IProductRepository;
 import org.example.productservice.product.domain.Product;
 import org.example.productservice.shared.exception.ResourceNotFoundException;
 import org.example.productservice.shared.response.PageResponse;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +53,7 @@ public class ProductService implements IProductService {
     }
 
     @Override
+    @Cacheable(value = "products", key = "#id")
     public ProductResponse getById(String id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
@@ -74,6 +77,7 @@ public class ProductService implements IProductService {
     }
 
     @Override
+    @CacheEvict(value = "products", key = "#id")
     public ProductResponse update(String id, ProductRequest request) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
@@ -89,6 +93,7 @@ public class ProductService implements IProductService {
     }
 
     @Override
+    @CacheEvict(value = "products", key = "#id")
     public void delete(String id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
