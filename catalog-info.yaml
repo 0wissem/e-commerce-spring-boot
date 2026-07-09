@@ -1,0 +1,80 @@
+# Backstage software catalog (https://backstage.io/docs/features/software-catalog/).
+# Point a Backstage instance at this repo (or this file) to browse the platform: the
+# services, their OpenAPI docs, ownership, and how they depend on each other.
+#
+# API definitions are fetched from each service's springdoc endpoint (/v3/api-docs),
+# which is intentionally public in every SecurityConfig.
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: wissem
+spec:
+  memberOf: [backend-team]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: backend-team
+  description: Owns the e-commerce backend services
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: e-commerce
+  description: E-commerce platform — Strangler Fig migration from a monolith to microservices.
+spec:
+  owner: backend-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: ecommerce-platform
+  description: Four deployable Spring Boot services (monolith, product, order, gateway), each with its own Postgres.
+spec:
+  owner: backend-team
+  domain: e-commerce
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: monolith
+  description: Identity service — owns customers/users, issues + validates JWTs. The legacy monolith, being strangled.
+  annotations:
+    github.com/project-slug: 0wissem/e-commerce-spring-boot
+  tags: [java, spring-boot, postgresql, jwt, flyway]
+spec:
+  type: service
+  lifecycle: production
+  owner: backend-team
+  system: ecommerce-platform
+  providesApis: [monolith-api]
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: monolith-api
+  description: Customers/users management + authentication (login, register, JWT).
+  tags: [openapi]
+spec:
+  type: openapi
+  lifecycle: production
+  owner: backend-team
+  system: ecommerce-platform
+  definition:
+    $text: http://monolith:8080/v3/api-docs
+---
+# The three extracted services keep their descriptor next to their code.
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: ecommerce-components
+  description: Catalog descriptors for the extracted services
+spec:
+  targets:
+    - ./product-service/catalog-info.yaml
+    - ./order-service/catalog-info.yaml
+    - ./gateway/catalog-info.yaml

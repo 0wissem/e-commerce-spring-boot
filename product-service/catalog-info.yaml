@@ -1,0 +1,28 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: product-service
+  description: Owns products & categories (Postgres full-text search). Extracted from the monolith.
+  annotations:
+    github.com/project-slug: 0wissem/e-commerce-spring-boot
+  tags: [java, spring-boot, postgresql, jwt, caching, full-text-search]
+spec:
+  type: service
+  lifecycle: production
+  owner: backend-team
+  system: ecommerce-platform
+  providesApis: [products-api]
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: products-api
+  description: Products + categories (search, CRUD; writes require the ADMIN role).
+  tags: [openapi]
+spec:
+  type: openapi
+  lifecycle: production
+  owner: backend-team
+  system: ecommerce-platform
+  definition:
+    $text: http://product-service:8081/v3/api-docs

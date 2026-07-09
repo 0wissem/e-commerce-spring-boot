@@ -1,0 +1,30 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: order-service
+  description: Owns orders & order items. On create it calls product-service + monolith and stores JSONB snapshots.
+  annotations:
+    github.com/project-slug: 0wissem/e-commerce-spring-boot
+  tags: [java, spring-boot, postgresql, jwt]
+spec:
+  type: service
+  lifecycle: production
+  owner: backend-team
+  system: ecommerce-platform
+  providesApis: [orders-api]
+  consumesApis: [products-api, monolith-api]
+  dependsOn: [component:product-service, component:monolith]
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: orders-api
+  description: Order creation + history (every endpoint requires a valid JWT).
+  tags: [openapi]
+spec:
+  type: openapi
+  lifecycle: production
+  owner: backend-team
+  system: ecommerce-platform
+  definition:
+    $text: http://order-service:8082/v3/api-docs

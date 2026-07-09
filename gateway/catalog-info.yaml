@@ -1,0 +1,17 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: gateway
+  description: >-
+    Spring Cloud Gateway — routes /api/orders → order-service,
+    /api/products & /api/categories → product-service, everything else → monolith.
+    Forwards the JWT downstream.
+  annotations:
+    github.com/project-slug: 0wissem/e-commerce-spring-boot
+  tags: [java, spring-cloud-gateway]
+spec:
+  type: service
+  lifecycle: production
+  owner: backend-team
+  system: ecommerce-platform
+  dependsOn: [component:monolith, component:product-service, component:order-service]
