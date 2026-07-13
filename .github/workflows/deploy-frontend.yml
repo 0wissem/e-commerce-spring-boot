@@ -1,12 +1,15 @@
 name: Build and Deploy Frontend to S3
 
+# MANUAL-ONLY while the AWS environments are torn down (free-tier credits
+# exhausted). Restore the `push:` trigger below when they are live again.
 on:
-  push:
-    branches:
-      - master
-      - dev
-    paths:
-      - 'frontend/**'
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - master
+  #     - dev
+  #   paths:
+  #     - 'frontend/**'
 
 jobs:
   build-and-deploy:

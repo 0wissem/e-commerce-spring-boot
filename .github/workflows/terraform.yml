@@ -2,8 +2,10 @@ name: Terraform (infra)
 
 # GitOps flow:
 #   • Open a PR touching terraform/  → runs `plan` so you review the diff.
-#   • Merge to dev/master           → runs `apply`.
+#   • Merge to dev/master            → runs `plan` only. Never applies.
 #   • Manual run (Actions tab)       → choose plan / apply / destroy.
+# apply/destroy are workflow_dispatch-only (see the step conditions below), so a
+# push can never create billable infrastructure.
 # Auth is OIDC (assume the bootstrap role) — NO stored secrets.
 
 on:

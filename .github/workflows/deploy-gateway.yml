@@ -1,14 +1,16 @@
 name: Build and Push Gateway to ECR
 
+# MANUAL-ONLY while the AWS environments are torn down (free-tier credits
+# exhausted). Restore the `push:` trigger below when they are live again.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - dev
-    paths:
-      - 'gateway/**'
-      - '.github/workflows/deploy-gateway.yml'
+  # push:
+  #   branches:
+  #     - master
+  #     - dev
+  #   paths:
+  #     - 'gateway/**'
+  #     - '.github/workflows/deploy-gateway.yml'
 
 permissions:
   id-token: write

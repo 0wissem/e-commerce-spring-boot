@@ -1,13 +1,15 @@
 name: Build and Push Product Service to ECR
 
+# MANUAL-ONLY while the AWS environments are torn down (free-tier credits
+# exhausted). Restore the `push:` trigger below when they are live again.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - dev
-    paths:
-      - 'product-service/**'
+  # push:
+  #   branches:
+  #     - master
+  #     - dev
+  #   paths:
+  #     - 'product-service/**'
 
 permissions:
   id-token: write
