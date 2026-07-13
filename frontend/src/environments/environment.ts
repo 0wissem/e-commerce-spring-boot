@@ -1,4 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://Gateway-env.eba-2qzdybvr.eu-north-1.elasticbeanstalk.com'
+  // Empty = same-origin: requests go to /api/... and the dev-server proxy
+  // (proxy.conf.json) forwards them to the local gateway on :8090.
+  apiUrl: ''
 };
