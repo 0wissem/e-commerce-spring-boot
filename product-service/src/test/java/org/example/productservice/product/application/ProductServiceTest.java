@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,7 +61,7 @@ class ProductServiceTest {
     @DisplayName("getById: returns the mapped product when it exists")
     void getById_returnsMappedProduct_whenFound() {
         // Arrange — set up the mock to return a product
-        Product product = new Product("p1", "Keyboard", 100.0, 5);
+        Product product = new Product("p1", "Keyboard", new BigDecimal("100.00"), 5);
         when(productRepository.findById("p1")).thenReturn(Optional.of(product));
 
         // Act
@@ -69,9 +70,12 @@ class ProductServiceTest {
         // Assert
         assertThat(response.id()).isEqualTo("p1");
         assertThat(response.name()).isEqualTo("Keyboard");
-        assertThat(response.price()).isEqualTo(100.0);
-        // finalPrice = price * 1.19 (business rule). Compare doubles with a tolerance.
-        assertThat(response.finalPrice()).isCloseTo(119.0, within(0.0001));
+        // isEqualByComparingTo, not isEqualTo: BigDecimal.equals() also compares scale,
+        // so 100.00 and 100.0 would be "different". compareTo compares value only.
+        assertThat(response.price()).isEqualByComparingTo("100.00");
+        // finalPrice = price * 1.19. With BigDecimal the result is EXACT — the tolerance
+        // this assertion used to need (isCloseTo/within) was a symptom of the double bug.
+        assertThat(response.finalPrice()).isEqualByComparingTo("119.00");
     }
 
     @Test
@@ -88,7 +92,7 @@ class ProductServiceTest {
     @Test
     @DisplayName("create: saves the product and returns the response")
     void create_savesProduct_andReturnsResponse() {
-        ProductRequest request = new ProductRequest("Mouse", 50.0, 10, null);
+        ProductRequest request = new ProductRequest("Mouse", null, null, new BigDecimal("50.00"), null, 10, null);
         // thenAnswer: make save() return its own argument (mimics the DB returning the saved row)
         when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -103,11 +107,11 @@ class ProductServiceTest {
     @Test
     @DisplayName("update: applies changes and publishes a stock event")
     void update_savesChanges_andPublishesStockEvent() {
-        Product existing = new Product("p1", "Old", 10.0, 1);
+        Product existing = new Product("p1", "Old", new BigDecimal("10.00"), 1);
         when(productRepository.findById("p1")).thenReturn(Optional.of(existing));
         when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ProductRequest request = new ProductRequest("New", 20.0, 7, null);
+        ProductRequest request = new ProductRequest("New", null, null, new BigDecimal("20.00"), null, 7, null);
         ProductResponse response = service.update("p1", request);
 
         assertThat(response.name()).isEqualTo("New");

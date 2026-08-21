@@ -1,9 +1,12 @@
 package org.example.productservice.product.application.dto;
 
+import java.math.BigDecimal;
+
 public record ProductSearchRequest(
         String query,
-        Double minPrice,
-        Double maxPrice,
+        BigDecimal minPrice,
+        BigDecimal maxPrice,
+        String brand,
         String categoryId,
         Boolean inStock,
         int page,

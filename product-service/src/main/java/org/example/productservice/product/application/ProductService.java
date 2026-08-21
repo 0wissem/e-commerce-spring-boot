@@ -82,8 +82,9 @@ public class ProductService implements IProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
         product.setName(request.name());
-        product.setPrice(request.price());
+        product.setPriceAmount(request.price());
         product.setStockQuantity(request.stockQuantity());
+        productMapper.applyOptionalFields(product, request);
         if (request.categoryIds() != null) {
             product.setCategories(categoryRepository.findAllByIds(request.categoryIds()));
         }
@@ -108,6 +109,7 @@ public class ProductService implements IProductService {
                         request.query(),
                         request.minPrice(),
                         request.maxPrice(),
+                        request.brand(),
                         request.categoryId(),
                         request.inStock(),
                         PageRequest.of(request.page(), request.size())

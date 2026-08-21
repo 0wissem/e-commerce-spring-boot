@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -66,7 +67,8 @@ class ProductCacheTest extends AbstractIntegrationTest {
         productService.getById("p1"); // cache HIT → no DB read
         verify(productRepository, never()).findById("p1");
 
-        productService.update("p1", new ProductRequest("New name", 20.0, 5, null)); // @CacheEvict
+        productService.update("p1",
+                new ProductRequest("New name", null, null, new BigDecimal("20.00"), null, 5, null)); // @CacheEvict
         clearInvocations(productRepository);
 
         productService.getById("p1"); // cache MISS → DB read again

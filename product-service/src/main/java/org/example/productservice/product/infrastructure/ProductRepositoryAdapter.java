@@ -1,6 +1,8 @@
 package org.example.productservice.product.infrastructure;
 
 import org.example.productservice.product.domain.IProductRepository;
+
+import java.math.BigDecimal;
 import org.example.productservice.product.domain.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,7 +42,8 @@ public class ProductRepositoryAdapter implements IProductRepository {
     public void deleteById(String id) { jpa.deleteById(id); }
 
     @Override
-    public Page<Product> search(String query, Double minPrice, Double maxPrice, String categoryId, Boolean inStock, Pageable pageable) {
-        return jpa.search(query, minPrice, maxPrice, categoryId, inStock, pageable);
+    public Page<Product> search(String query, BigDecimal minPrice, BigDecimal maxPrice, String brand,
+                                String categoryId, Boolean inStock, Pageable pageable) {
+        return jpa.search(query, minPrice, maxPrice, brand, categoryId, inStock, pageable);
     }
 }
