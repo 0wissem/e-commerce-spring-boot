@@ -7,6 +7,8 @@ import org.example.springboot0.customer.application.dto.CustomerResponse;
 import org.example.springboot0.customer.domain.Role;
 import org.example.springboot0.shared.exception.GlobalExceptionHandler;
 import org.example.springboot0.shared.exception.ResourceNotFoundException;
+import java.time.Instant;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,7 +48,7 @@ class CustomerControllerTest {
     @DisplayName("GET /api/customers/{id} → 200 with the customer JSON")
     void getById_returns200() throws Exception {
         when(customerService.getById("c1"))
-                .thenReturn(new CustomerResponse("c1", "Alice", "alice@example.com", Role.CONSUMER));
+                .thenReturn(new CustomerResponse("c1", "Alice", "alice@example.com", Role.CONSUMER, null, null, Instant.EPOCH, Instant.EPOCH));
 
         mockMvc.perform(get("/api/customers/c1"))
                 .andExpect(status().isOk())
@@ -69,8 +71,8 @@ class CustomerControllerTest {
     @DisplayName("POST /api/customers → 201 when the body is valid")
     void create_returns201() throws Exception {
         when(customerService.create(any()))
-                .thenReturn(new CustomerResponse("c2", "Bob", "bob@example.com", Role.CONSUMER));
-        CustomerRequest request = new CustomerRequest("Bob", "bob@example.com");
+                .thenReturn(new CustomerResponse("c2", "Bob", "bob@example.com", Role.CONSUMER, null, null, Instant.EPOCH, Instant.EPOCH));
+        CustomerRequest request = new CustomerRequest("Bob", "bob@example.com", null, null);
 
         mockMvc.perform(post("/api/customers")
                         .contentType(MediaType.APPLICATION_JSON)

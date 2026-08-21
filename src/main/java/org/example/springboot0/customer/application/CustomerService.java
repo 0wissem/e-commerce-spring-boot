@@ -63,6 +63,7 @@ public class CustomerService implements ICustomerService {
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", id));
         customer.setName(request.name());
         customer.setEmail(request.email());
+        customerMapper.applyOptionalFields(customer, request);
         return customerMapper.toResponse(customerRepository.save(customer));
     }
 
