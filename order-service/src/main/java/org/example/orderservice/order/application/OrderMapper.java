@@ -17,8 +17,8 @@ public class OrderMapper {
                 item.getProductId(),
                 item.getProductName(),
                 item.getQuantity(),
-                item.getUnitPrice(),
-                item.getTotalPrice(),
+                item.getUnitAmount(),
+                item.getLineAmount(),
                 item.getProductSnapshot()
         );
     }
@@ -29,10 +29,15 @@ public class OrderMapper {
                 .toList();
         return new OrderResponse(
                 order.getId(),
+                order.getOrderNumber(),
                 order.getCustomerId(),
                 order.getCustomerName(),
                 order.getStatus(),
-                order.getTotalPrice(),
+                order.getTotalAmount(),
+                order.getCurrency(),
+                order.getShippingAddress(),
+                order.getCreatedAt(),
+                order.getUpdatedAt(),
                 items
         );
     }
