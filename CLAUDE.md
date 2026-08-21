@@ -61,7 +61,9 @@ The domain defines `IOrderRepository` (the port). The infrastructure implements 
 
 ### 5. Flyway Database Migrations
 Versioned SQL files in `src/main/resources/db/migration/`. Applied in order at startup. Never modify an applied migration — always add a new version.
-Monolith is at V22. Product-service is at V7.
+Migration history was squashed/rebaselined. Current heads (verified 2026-08-21): **monolith V3**,
+**product-service V1**, **order-service V1**. The V20–V22 numbers referenced in the Phase 4 notes
+above are historical — they no longer exist on disk.
 
 ### 6. Spring Profiles
 `dev` = H2 in-memory (no setup), `prod` = AWS RDS PostgreSQL. Configured in `application-dev.properties` / `application-prod.properties`.
