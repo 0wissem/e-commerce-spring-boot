@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { GetProductUseCase } from '../../application/get-product.usecase';
 import { Product } from '../../domain/product.model';
 import { CartService } from '../../../cart/application/cart.service';
@@ -9,7 +9,7 @@ import { ToastService } from '../../../../shared/services/toast.service';
 @Component({
   selector: 'app-product-detail',
   standalone: true,
-  imports: [DecimalPipe, RouterLink],
+  imports: [CurrencyPipe, DatePipe, RouterLink],
   template: `
     <div class="max-w-3xl mx-auto px-4 py-8">
       <a routerLink="/products" class="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-700 transition mb-6">
@@ -51,12 +51,26 @@ import { ToastService } from '../../../../shared/services/toast.service';
                 }
               </div>
 
-              <h1 class="text-2xl font-bold text-slate-900 leading-tight">{{ product.name }}</h1>
+              <div class="flex flex-col gap-1">
+                @if (product.brand) {
+                  <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ product.brand }}</span>
+                }
+                <h1 class="text-2xl font-bold text-slate-900 leading-tight">{{ product.name }}</h1>
+                <span class="text-xs text-slate-400 font-mono">{{ product.sku }}</span>
+              </div>
+
+              @if (product.description) {
+                <p class="text-sm text-slate-600 leading-relaxed">{{ product.description }}</p>
+              }
 
               <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-slate-900">{{ product.finalPrice | number:'1.2-2' }} $</span>
+                <span class="text-3xl font-bold text-slate-900">
+                  {{ product.finalPrice | currency:(product.currency || 'EUR'):'symbol':'1.2-2' }}
+                </span>
                 @if (product.finalPrice !== product.price) {
-                  <span class="text-base text-slate-400 line-through">{{ product.price | number:'1.2-2' }} $</span>
+                  <span class="text-base text-slate-400 line-through">
+                    {{ product.price | currency:(product.currency || 'EUR'):'symbol':'1.2-2' }}
+                  </span>
                   <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                     -{{ discount() }}%
                   </span>
@@ -70,6 +84,9 @@ import { ToastService } from '../../../../shared/services/toast.service';
                   <span class="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">Only {{ product.stockQuantity }} left</span>
                 } @else {
                   <span class="text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-full">In stock · {{ product.stockQuantity }} available</span>
+                }
+                @if (product.createdAt) {
+                  <span class="text-xs text-slate-400">Added {{ product.createdAt | date:'mediumDate' }}</span>
                 }
               </div>
 

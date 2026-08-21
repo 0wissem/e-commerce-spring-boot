@@ -45,4 +45,24 @@ export class AuthUseCase {
   getRole(): string | null {
     return localStorage.getItem('role');
   }
+
+  /**
+   * The current user's id, read from the JWT `sub` claim (JwtService sets subject = user id).
+   *
+   * This only DECODES the payload — it does not verify the signature, and must never be
+   * trusted for authorisation. That check belongs on the server, which validates the token
+   * on every request. Here it is used purely to build a URL.
+   */
+  getUserId(): string | null {
+    const token = this.getToken();
+    if (!token) return null;
+    try {
+      const payload = token.split('.')[1];
+      // JWTs use base64url; atob expects standard base64.
+      const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+      return JSON.parse(json).sub ?? null;
+    } catch {
+      return null;
+    }
+  }
 }
