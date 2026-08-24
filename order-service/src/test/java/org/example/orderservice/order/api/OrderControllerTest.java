@@ -16,6 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -50,7 +52,8 @@ class OrderControllerTest {
     @DisplayName("GET /api/orders/{id} → 200 with the order JSON")
     void getById_returns200() throws Exception {
         when(orderService.getById("o1"))
-                .thenReturn(new OrderResponse("o1", "cust-1", "Alice", OrderStatus.PENDING, 120.0, List.of()));
+                .thenReturn(new OrderResponse("o1", "ORD-2026-AAAA1111", "cust-1", "Alice", OrderStatus.PENDING,
+                        new BigDecimal("120.00"), "EUR", null, Instant.EPOCH, Instant.EPOCH, List.of()));
 
         mockMvc.perform(get("/api/orders/o1"))
                 .andExpect(status().isOk())
@@ -73,8 +76,9 @@ class OrderControllerTest {
     @DisplayName("POST /api/orders → 201 when the body is valid")
     void create_returns201() throws Exception {
         when(orderService.create(any()))
-                .thenReturn(new OrderResponse("o2", "cust-1", "Alice", OrderStatus.PENDING, 200.0, List.of()));
-        OrderRequest request = new OrderRequest("cust-1", List.of(new OrderItemRequest("prod-1", 2)));
+                .thenReturn(new OrderResponse("o2", "ORD-2026-BBBB2222", "cust-1", "Alice", OrderStatus.PENDING,
+                        new BigDecimal("200.00"), "EUR", null, Instant.EPOCH, Instant.EPOCH, List.of()));
+        OrderRequest request = new OrderRequest("cust-1", List.of(new OrderItemRequest("prod-1", 2)), null);
 
         mockMvc.perform(post("/api/orders")
                         .contentType(MediaType.APPLICATION_JSON)

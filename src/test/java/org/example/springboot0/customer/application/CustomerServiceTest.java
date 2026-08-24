@@ -67,7 +67,7 @@ class CustomerServiceTest {
     void create_saves() {
         when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        CustomerResponse response = service.create(new CustomerRequest("Bob", "bob@example.com"));
+        CustomerResponse response = service.create(new CustomerRequest("Bob", "bob@example.com", null, null));
 
         assertThat(response.name()).isEqualTo("Bob");
         verify(customerRepository).save(any(Customer.class));
@@ -80,7 +80,7 @@ class CustomerServiceTest {
         when(customerRepository.findById("c1")).thenReturn(Optional.of(existing));
         when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        CustomerResponse response = service.update("c1", new CustomerRequest("New", "new@example.com"));
+        CustomerResponse response = service.update("c1", new CustomerRequest("New", "new@example.com", null, null));
 
         assertThat(response.name()).isEqualTo("New");
         assertThat(response.email()).isEqualTo("new@example.com");

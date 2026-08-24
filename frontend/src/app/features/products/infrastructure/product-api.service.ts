@@ -21,6 +21,7 @@ export class ProductApiService implements IProductRepository {
     if (p.query)    params = params.set('query', p.query);
     if (p.minPrice != null) params = params.set('minPrice', p.minPrice);
     if (p.maxPrice != null) params = params.set('maxPrice', p.maxPrice);
+    if (p.brand)            params = params.set('brand', p.brand);
     if (p.inStock != null)  params = params.set('inStock', p.inStock);
     return this.http.get<any>(`${this.base}/search`, { params }).pipe(map(r => r.data));
   }

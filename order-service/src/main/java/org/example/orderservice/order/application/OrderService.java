@@ -1,6 +1,7 @@
 package org.example.orderservice.order.application;
 
 import org.example.orderservice.order.application.dto.OrderRequest;
+import org.example.orderservice.order.application.dto.CursorPageResponse;
 import org.example.orderservice.order.application.dto.OrderResponse;
 import org.example.orderservice.order.application.dto.OrderStatusRequest;
 import org.example.orderservice.order.domain.IOrderRepository;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -67,6 +69,36 @@ public class OrderService implements IOrderService {
                 .toList();
     }
 
+    /** Maximum page size — an unbounded `limit` is a denial-of-service vector. */
+    private static final int MAX_HISTORY_LIMIT = 100;
+
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPageResponse<OrderResponse> getCustomerHistory(String customerId, String cursor, int limit) {
+        int safeLimit = Math.min(Math.max(limit, 1), MAX_HISTORY_LIMIT);
+        OrderHistoryCursor decoded = OrderHistoryCursor.decode(cursor);
+
+        // Fetch one extra row: if it comes back, there IS a next page. This avoids a COUNT
+        // query — knowing "is there more" is cheaper than knowing "how many in total".
+        List<Order> orders = orderRepository.findCustomerHistoryPage(
+                customerId,
+                decoded == null ? null : decoded.createdAt(),
+                decoded == null ? null : decoded.id(),
+                safeLimit + 1
+        );
+
+        boolean hasMore = orders.size() > safeLimit;
+        List<Order> page = hasMore ? orders.subList(0, safeLimit) : orders;
+
+        String nextCursor = null;
+        if (hasMore) {
+            Order last = page.get(page.size() - 1);
+            nextCursor = new OrderHistoryCursor(last.getCreatedAt(), last.getId()).encode();
+        }
+
+        return CursorPageResponse.of(page.stream().map(orderMapper::toResponse).toList(), nextCursor);
+    }
+
     @Override
     public OrderResponse create(OrderRequest request) {
         // 1. Resolve the customer name from the monolith (snapshot taken at creation time).
@@ -82,32 +114,45 @@ public class OrderService implements IOrderService {
                     .map(c -> new OrderProductSnapshot.CategorySnapshot(c.id(), c.name()))
                     .toList();
 
-            OrderProductSnapshot snapshot =
-                    new OrderProductSnapshot(product.name(), product.price(), categories);
+            OrderProductSnapshot snapshot = OrderProductSnapshot.of(
+                    product.name(),
+                    product.sku(),
+                    product.brand(),
+                    product.price(),
+                    product.currency(),
+                    categories
+            );
 
-            double lineTotal = product.price() * itemRequest.quantity();
-
+            // The line total is derived inside OrderItem, so it cannot disagree with
+            // unitAmount * quantity.
             return new OrderItem(
                     null,
                     product.id(),
                     product.name(),
                     product.price(),
                     snapshot,
-                    itemRequest.quantity(),
-                    lineTotal
+                    itemRequest.quantity()
             );
         }).toList();
 
         // 3. Total + assemble the order with the customer snapshot.
-        double totalPrice = items.stream().mapToDouble(OrderItem::getTotalPrice).sum();
+        // reduce with BigDecimal::add, not mapToDouble().sum() — summing doubles is precisely
+        // how a total ends up a cent away from the sum of its own lines.
+        BigDecimal totalAmount = items.stream()
+                .map(OrderItem::getLineAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Order order = new Order(
                 null,
                 customer.id(),
                 customer.name(),
-                totalPrice,
+                totalAmount,
                 OrderStatus.PENDING
         );
+
+        if (request.shippingAddress() != null) {
+            order.setShippingAddress(request.shippingAddress());
+        }
 
         // 4. Link both sides of the relationship so the cascade persists the items with the order.
         order.setOrderItems(items);

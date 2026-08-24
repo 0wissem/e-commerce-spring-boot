@@ -3,6 +3,7 @@ package org.example.orderservice.order.api;
 import jakarta.validation.Valid;
 import org.example.orderservice.order.application.IOrderService;
 import org.example.orderservice.order.application.dto.OrderRequest;
+import org.example.orderservice.order.application.dto.CursorPageResponse;
 import org.example.orderservice.order.application.dto.OrderResponse;
 import org.example.orderservice.order.application.dto.OrderStatusRequest;
 import org.example.orderservice.shared.response.ApiResponse;
@@ -33,6 +34,20 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<OrderResponse>> getById(@PathVariable String id) {
         return ResponseEntity.ok(ApiResponse.ok(orderService.getById(id)));
+    }
+
+    /**
+     * Keyset-paginated history. Pass the previous response's `nextCursor` to continue;
+     * omit it for the first page. Kept on a separate path so the existing unpaginated
+     * endpoint stays untouched for current clients.
+     */
+    @GetMapping("/customer/{customerId}/history")
+    public ResponseEntity<ApiResponse<CursorPageResponse<OrderResponse>>> getCustomerHistory(
+            @PathVariable String customerId,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                orderService.getCustomerHistory(customerId, cursor, limit)));
     }
 
     @GetMapping("/customer/{customerId}")

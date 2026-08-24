@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -63,10 +64,59 @@ class ProductJpaRepositoryTest extends AbstractIntegrationTest {
         em.flush();
         em.clear();
 
-        Page<Product> results = repository.search("keyboard", null, null, null, null, PageRequest.of(0, 10));
+        Page<Product> results = repository.search("keyboard", null, null, null, null, null, PageRequest.of(0, 10));
 
         assertThat(results.getContent()).hasSize(1);
         assertThat(results.getContent().get(0).getName()).contains("Keyboard");
+    }
+
+    @Test
+    @DisplayName("weighted search: a name match outranks a description-only match")
+    void weightedSearchRanksNameAboveDescription() {
+        // "ergonomic" appears in one product's NAME (weight A) and another's DESCRIPTION
+        // (weight C). ts_rank must put the name match first.
+        Product nameMatch = newProduct("Ergonomic Keyboard", 120.0, 3);
+
+        Product descriptionMatch = newProduct("Standard Mouse", 40.0, 10);
+        descriptionMatch.setDescription("A comfortable and ergonomic shape for long sessions");
+
+        repository.save(descriptionMatch); // saved FIRST, so insertion order can't explain the result
+        repository.save(nameMatch);
+        em.flush();
+        em.clear();
+
+        Page<Product> results =
+                repository.search("ergonomic", null, null, null, null, null, PageRequest.of(0, 10));
+
+        assertThat(results.getContent()).hasSize(2);
+        assertThat(results.getContent().get(0).getName()).isEqualTo("Ergonomic Keyboard");
+        assertThat(results.getContent().get(1).getName()).isEqualTo("Standard Mouse");
+    }
+
+    @Test
+    @DisplayName("search filters on price_amount (numeric), not the deprecated double column")
+    void searchFiltersOnNumericPrice() {
+        repository.save(newProduct("Cheap Cable", 9.99, 5));
+        repository.save(newProduct("Pricey Monitor", 499.00, 2));
+        em.flush();
+        em.clear();
+
+        Page<Product> results = repository.search(
+                null, new BigDecimal("10.00"), null, null, null, null, PageRequest.of(0, 10));
+
+        assertThat(results.getContent()).hasSize(1);
+        assertThat(results.getContent().get(0).getName()).isEqualTo("Pricey Monitor");
+    }
+
+    @Test
+    @DisplayName("audit timestamps are stamped on persist by the @PrePersist callback")
+    void auditTimestampsAreStamped() {
+        Product saved = repository.save(newProduct("Webcam", 59.90, 4));
+        em.flush();
+
+        assertThat(saved.getCreatedAt()).isNotNull();
+        assertThat(saved.getUpdatedAt()).isNotNull();
+        assertThat(saved.getSku()).startsWith("SKU-");
     }
 
     @Test

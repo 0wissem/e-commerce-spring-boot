@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -55,7 +57,10 @@ class ProductControllerTest {
     @Test
     @DisplayName("GET /api/products/{id} → 200 with the product JSON")
     void getById_returns200() throws Exception {
-        ProductResponse product = new ProductResponse("p1", "Keyboard", 100.0, 119.0, 5, Set.of());
+        ProductResponse product = new ProductResponse(
+                "p1", "SKU-P1", "Keyboard", "Logitech", "A mechanical keyboard",
+                new BigDecimal("100.00"), new BigDecimal("119.00"), "EUR", 5,
+                Instant.EPOCH, Instant.EPOCH, Set.of());
         when(productService.getById("p1")).thenReturn(product);
 
         mockMvc.perform(get("/api/products/p1"))
@@ -80,8 +85,12 @@ class ProductControllerTest {
     @Test
     @DisplayName("POST /api/products → 201 when the body is valid")
     void create_returns201_whenValid() throws Exception {
-        ProductRequest request = new ProductRequest("Mouse", 50.0, 10, null);
-        ProductResponse created = new ProductResponse("p2", "Mouse", 50.0, 59.5, 10, Set.of());
+        ProductRequest request =
+                new ProductRequest("Mouse", null, null, new BigDecimal("50.00"), null, 10, null);
+        ProductResponse created = new ProductResponse(
+                "p2", "SKU-P2", "Mouse", null, null,
+                new BigDecimal("50.00"), new BigDecimal("59.50"), "EUR", 10,
+                Instant.EPOCH, Instant.EPOCH, Set.of());
         when(productService.create(any())).thenReturn(created);
 
         mockMvc.perform(post("/api/products")

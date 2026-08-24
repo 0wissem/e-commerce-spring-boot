@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +23,11 @@ public class OrderRepositoryAdapter implements IOrderRepository {
     @Override public Page<Order> findAll(Pageable pageable) { return jpa.findAll(pageable); }
     @Override public Optional<Order> findById(String id) { return jpa.findById(id); }
     @Override public List<Order> findByCustomerId(String customerId) { return jpa.findByCustomerId(customerId); }
+
+    @Override
+    public List<Order> findCustomerHistoryPage(String customerId, Instant afterCreatedAt, String afterId, int limit) {
+        return jpa.findCustomerHistoryPage(customerId, afterCreatedAt, afterId, limit);
+    }
     @Override public Order save(Order order) { return jpa.save(order); }
     @Override public boolean existsById(String id) { return jpa.existsById(id); }
     @Override public void deleteById(String id) { jpa.deleteById(id); }

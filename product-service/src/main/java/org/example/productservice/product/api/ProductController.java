@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+
 
 @RestController
 @RequestMapping("/api/products")
@@ -32,13 +34,15 @@ public class ProductController {
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> search(
             @RequestParam(required = false) String query,
-            @RequestParam(required = false) Double minPrice,
-            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String brand,
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) Boolean inStock,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        ProductSearchRequest request = new ProductSearchRequest(query, minPrice, maxPrice, categoryId, inStock, page, size);
+        ProductSearchRequest request =
+                new ProductSearchRequest(query, minPrice, maxPrice, brand, categoryId, inStock, page, size);
         return ResponseEntity.ok(ApiResponse.ok(productService.search(request)));
     }
 

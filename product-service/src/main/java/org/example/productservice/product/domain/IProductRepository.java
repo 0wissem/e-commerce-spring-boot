@@ -3,6 +3,7 @@ package org.example.productservice.product.domain;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,5 +15,6 @@ public interface IProductRepository {
     Product save(Product product);
     boolean existsById(String id);
     void deleteById(String id);
-    Page<Product> search(String query, Double minPrice, Double maxPrice, String categoryId, Boolean inStock, Pageable pageable);
+    Page<Product> search(String query, BigDecimal minPrice, BigDecimal maxPrice, String brand,
+                         String categoryId, Boolean inStock, Pageable pageable);
 }

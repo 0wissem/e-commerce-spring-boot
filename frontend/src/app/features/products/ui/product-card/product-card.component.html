@@ -16,13 +16,26 @@
     </svg>
   </div>
 
-  <h3 class="font-semibold text-slate-800 text-sm leading-snug">{{ product.name }}</h3>
+  <div class="flex flex-col gap-0.5">
+    @if (product.brand) {
+      <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{{ product.brand }}</span>
+    }
+    <h3 class="font-semibold text-slate-800 text-sm leading-snug">{{ product.name }}</h3>
+  </div>
+
+  @if (product.description) {
+    <p class="text-xs text-slate-500 leading-relaxed line-clamp-2">{{ product.description }}</p>
+  }
 
   <div class="mt-auto flex items-center justify-between pt-1">
     <div class="flex flex-col">
-      <span class="text-base font-bold text-slate-900">{{ product.finalPrice | number:'1.2-2' }} $</span>
+      <span class="text-base font-bold text-slate-900">
+        {{ product.finalPrice | currency:(product.currency || 'EUR'):'symbol':'1.2-2' }}
+      </span>
       @if (product.finalPrice !== product.price) {
-        <span class="text-xs text-slate-400 line-through">{{ product.price | number:'1.2-2' }} $</span>
+        <span class="text-xs text-slate-400 line-through">
+          {{ product.price | currency:(product.currency || 'EUR'):'symbol':'1.2-2' }}
+        </span>
       }
     </div>
     <a [routerLink]="['/products', product.id]"

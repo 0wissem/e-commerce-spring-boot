@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;
+import java.math.BigDecimal;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,7 +51,8 @@ class OrderTransactionalTest extends AbstractIntegrationTest {
         when(customerServiceClient.getById("cust-1"))
                 .thenReturn(new CustomerServiceClient.CustomerData("cust-1", "Alice", "a@e.com"));
         when(productServiceClient.getById("prod-ok"))
-                .thenReturn(new ProductServiceClient.ProductData("prod-ok", "Keyboard", 100.0, Set.of()));
+                .thenReturn(new ProductServiceClient.ProductData("prod-ok", "SKU-KB", "Keyboard", "Logitech",
+                        new BigDecimal("100.00"), "EUR", Set.of()));
         // 2nd item blows up mid-transaction (a RuntimeException → triggers rollback)
         when(productServiceClient.getById("prod-bad"))
                 .thenThrow(new ResourceNotFoundException("Product", "prod-bad"));
@@ -58,7 +60,7 @@ class OrderTransactionalTest extends AbstractIntegrationTest {
         OrderRequest request = new OrderRequest("cust-1", List.of(
                 new OrderItemRequest("prod-ok", 2),
                 new OrderItemRequest("prod-bad", 1)
-        ));
+        ), null);
 
         assertThatThrownBy(() -> orderService.create(request))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -73,9 +75,10 @@ class OrderTransactionalTest extends AbstractIntegrationTest {
         when(customerServiceClient.getById("cust-1"))
                 .thenReturn(new CustomerServiceClient.CustomerData("cust-1", "Alice", "a@e.com"));
         when(productServiceClient.getById("prod-ok"))
-                .thenReturn(new ProductServiceClient.ProductData("prod-ok", "Keyboard", 100.0, Set.of()));
+                .thenReturn(new ProductServiceClient.ProductData("prod-ok", "SKU-KB", "Keyboard", "Logitech",
+                        new BigDecimal("100.00"), "EUR", Set.of()));
 
-        OrderRequest request = new OrderRequest("cust-1", List.of(new OrderItemRequest("prod-ok", 2)));
+        OrderRequest request = new OrderRequest("cust-1", List.of(new OrderItemRequest("prod-ok", 2)), null);
         orderService.create(request);
 
         assertThat(orderRepository.findAll()).hasSize(1);

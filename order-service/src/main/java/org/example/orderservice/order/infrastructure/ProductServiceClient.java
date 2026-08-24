@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.math.BigDecimal;
 import java.util.Set;
 
 @Component
@@ -34,8 +35,24 @@ public class ProductServiceClient {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ProductResponse(ProductData data) {}
 
+    /**
+     * Mirrors product-service's ProductResponse. `price` is BigDecimal, not double — parsing
+     * an exact JSON decimal into a double would reintroduce the rounding error at the very
+     * boundary the snapshot is meant to freeze.
+     *
+     * sku/brand/currency are new in the enriched product model. They stay nullable so this
+     * client keeps working against an instance of product-service that predates them.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ProductData(String id, String name, double price, Set<CategoryInfo> categories) {}
+    public record ProductData(
+            String id,
+            String sku,
+            String name,
+            String brand,
+            BigDecimal price,
+            String currency,
+            Set<CategoryInfo> categories
+    ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record CategoryInfo(String id, String name) {}

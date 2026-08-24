@@ -13,11 +13,23 @@ public class CustomerMapper {
                 customer.getId(),
                 customer.getName(),
                 customer.getEmail(),
-                customer.getRole()
+                customer.getRole(),
+                customer.getPhone(),
+                customer.getDefaultAddress(),
+                customer.getCreatedAt(),
+                customer.getUpdatedAt()
         );
     }
 
     public Customer toDomain(CustomerRequest request) {
-        return new Customer(null, request.name(), request.email());
+        Customer customer = new Customer(null, request.name(), request.email());
+        applyOptionalFields(customer, request);
+        return customer;
+    }
+
+    /** Shared by create and update: only overwrite what the caller actually sent. */
+    public void applyOptionalFields(Customer customer, CustomerRequest request) {
+        if (request.phone() != null)          customer.setPhone(request.phone());
+        if (request.defaultAddress() != null) customer.setDefaultAddress(request.defaultAddress());
     }
 }
