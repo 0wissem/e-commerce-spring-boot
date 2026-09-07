@@ -1,9 +1,11 @@
 package org.example.productservice.product.api;
 
 import org.example.productservice.product.application.IProductService;
+import org.example.productservice.product.application.StockService;
 import org.example.productservice.product.application.dto.ProductRequest;
 import org.example.productservice.product.application.dto.ProductResponse;
 import org.example.productservice.product.application.dto.ProductSearchRequest;
+import org.example.productservice.product.application.dto.StockDecrementRequest;
 import org.example.productservice.shared.response.ApiResponse;
 import org.example.productservice.shared.response.PageResponse;
 import jakarta.validation.Valid;
@@ -19,9 +21,11 @@ import java.math.BigDecimal;
 public class ProductController {
 
     private final IProductService productService;
+    private final StockService stockService;
 
-    public ProductController(IProductService productService) {
+    public ProductController(IProductService productService, StockService stockService) {
         this.productService = productService;
+        this.stockService = stockService;
     }
 
     @GetMapping
@@ -67,5 +71,29 @@ public class ProductController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String id) {
         productService.delete(id);
         return ResponseEntity.ok(ApiResponse.ok("Product deleted", null));
+    }
+
+    /**
+     * Reserves stock for an order. Goes through StockService, which retries on an
+     * optimistic-lock conflict — the controller must never see one.
+     *
+     * POST, not PUT: it is neither idempotent nor a full replacement. Calling it twice
+     * removes twice the stock.
+     */
+    @PostMapping("/{id}/stock/decrement")
+    public ResponseEntity<ApiResponse<ProductResponse>> decrementStock(
+            @PathVariable String id,
+            @Valid @RequestBody StockDecrementRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Stock decremented", stockService.decrementStock(id, request.quantity())));
+    }
+
+    /** Compensating action: returns reserved units after a failed order. */
+    @PostMapping("/{id}/stock/increment")
+    public ResponseEntity<ApiResponse<ProductResponse>> incrementStock(
+            @PathVariable String id,
+            @Valid @RequestBody StockDecrementRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                "Stock incremented", stockService.incrementStock(id, request.quantity())));
     }
 }

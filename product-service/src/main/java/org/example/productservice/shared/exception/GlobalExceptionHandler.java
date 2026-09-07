@@ -1,8 +1,10 @@
 package org.example.productservice.shared.exception;
 
+import org.example.productservice.product.domain.InsufficientStockException;
 import org.example.productservice.shared.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -18,6 +20,27 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /**
+     * 409 Conflict, not 400: the request was well-formed and the client did nothing wrong —
+     * the resource simply isn't in a state that allows it. A 400 would tell the client to fix
+     * its payload, which would be misleading; 409 says "retry later or order fewer".
+     */
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInsufficientStock(InsufficientStockException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
+     * Reached only when StockService has exhausted its retries — sustained contention on one
+     * row. 409 again, and the client may retry.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLock(OptimisticLockingFailureException ex) {
+        log.warn("Optimistic lock conflict survived all retries", ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("The resource was modified concurrently. Please retry."));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidation(MethodArgumentNotValidException ex) {

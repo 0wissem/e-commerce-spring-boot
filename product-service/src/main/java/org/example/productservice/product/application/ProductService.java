@@ -93,6 +93,71 @@ public class ProductService implements IProductService {
         return response;
     }
 
+    /**
+     * Decrements stock inside ONE transaction.
+     *
+     * The optimistic-lock conflict surfaces on flush, not on save(): Hibernate batches the
+     * UPDATE until the transaction commits, so the exception is thrown as this method
+     * returns. That is precisely why the retry cannot live in this class — by the time the
+     * failure is visible, this transaction is already doomed and must be rolled back before
+     * anything is retried. {@link StockService} wraps it from outside.
+     */
+    @Override
+    @CacheEvict(value = "products", key = "#id")
+    public ProductResponse decrementStock(String id, int quantity) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+
+        product.decrementStock(quantity);   // the invariant is enforced by the entity
+
+        ProductResponse response = productMapper.toResponse(productRepository.save(product));
+        stockEventPublisher.publish(
+                new StockUpdatedEvent(product.getId(), product.getName(), product.getStockQuantity()));
+        return response;
+    }
+
+    /**
+     * Same operation, PESSIMISTIC strategy — the deliberate counterpart to
+     * {@link #decrementStock}.
+     *
+     * `findByIdForUpdate` issues SELECT ... FOR UPDATE, so the row is locked before it is
+     * read. A second transaction blocks right there until this one commits, then reads the
+     * updated value. No conflict can occur, so there is nothing to retry — which is why no
+     * StockService wrapper is needed for this path.
+     *
+     * When to prefer it: HIGH contention on a single row (a flash sale on one item), where
+     * optimistic retries would thrash. When to avoid it: everything else — it serialises
+     * callers and holds a DB lock for the length of the transaction.
+     */
+    @Override
+    @CacheEvict(value = "products", key = "#id")
+    public ProductResponse decrementStockPessimistic(String id, int quantity) {
+        Product product = productRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+
+        product.decrementStock(quantity);
+
+        ProductResponse response = productMapper.toResponse(productRepository.save(product));
+        stockEventPublisher.publish(
+                new StockUpdatedEvent(product.getId(), product.getName(), product.getStockQuantity()));
+        return response;
+    }
+
+    /** Puts units back — the compensating action for a failed order. */
+    @Override
+    @CacheEvict(value = "products", key = "#id")
+    public ProductResponse incrementStock(String id, int quantity) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+
+        product.incrementStock(quantity);
+
+        ProductResponse response = productMapper.toResponse(productRepository.save(product));
+        stockEventPublisher.publish(
+                new StockUpdatedEvent(product.getId(), product.getName(), product.getStockQuantity()));
+        return response;
+    }
+
     @Override
     @CacheEvict(value = "products", key = "#id")
     public void delete(String id) {

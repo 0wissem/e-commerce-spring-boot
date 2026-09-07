@@ -33,7 +33,7 @@ class ProductJpaRepositoryTest extends AbstractIntegrationTest {
     private EntityManager em; // jakarta.persistence.EntityManager — to flush/clear the cache
 
     private Product newProduct(String name, double price, int stock) {
-        return new Product(UUID.randomUUID().toString(), name, price, stock);
+        return new Product(UUID.randomUUID().toString(), name, BigDecimal.valueOf(price), stock);
     }
 
     @Test

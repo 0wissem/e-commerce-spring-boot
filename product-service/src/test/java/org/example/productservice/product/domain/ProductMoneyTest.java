@@ -55,15 +55,6 @@ class ProductMoneyTest {
         assertThat(product.getPriceAmount().scale()).isEqualTo(2);
     }
 
-    @Test
-    @DisplayName("the legacy double column is kept in sync during the expand/contract overlap")
-    void legacyColumnIsDualWritten() {
-        Product product = new Product("p4", "Monitor", new BigDecimal("249.50"), 1);
-
-        // An older instance still reading `price` sees the same value until the
-        // contract migration drops the column.
-        assertThat(product.getPrice()).isEqualTo(249.50d);
-    }
 
     @Test
     @DisplayName("currency defaults to EUR — an amount without a currency is not money")

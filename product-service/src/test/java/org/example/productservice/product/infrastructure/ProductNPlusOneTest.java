@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,7 +47,7 @@ class ProductNPlusOneTest extends AbstractIntegrationTest {
     void seed() {
         Category cat = categoryRepository.save(new Category(UUID.randomUUID().toString(), "Electronics", "gadgets"));
         for (int i = 0; i < PRODUCT_COUNT; i++) {
-            Product p = new Product(UUID.randomUUID().toString(), "Product " + i, 10.0 * (i + 1), 5);
+            Product p = new Product(UUID.randomUUID().toString(), "Product " + i, BigDecimal.valueOf(10.0 * (i + 1)), 5);
             Set<Category> cats = new HashSet<>();
             cats.add(cat);
             p.setCategories(cats);

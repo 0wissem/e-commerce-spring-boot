@@ -30,6 +30,9 @@ public class ProductRepositoryAdapter implements IProductRepository {
     public Optional<Product> findById(String id) { return jpa.findById(id); }
 
     @Override
+    public Optional<Product> findByIdForUpdate(String id) { return jpa.findByIdForUpdate(id); }
+
+    @Override
     public Optional<Product> findByName(String name) { return jpa.findByNameIgnoreCase(name); }
 
     @Override

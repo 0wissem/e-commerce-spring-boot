@@ -5,9 +5,13 @@ import org.example.productservice.product.domain.Product;
 import java.math.BigDecimal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
@@ -16,6 +20,25 @@ import java.util.Optional;
 interface ProductJpaRepository extends JpaRepository<Product, String> {
 
     Optional<Product> findByNameIgnoreCase(String name);
+
+    /**
+     * PESSIMISTIC read: takes a row-level write lock immediately (`SELECT ... FOR UPDATE`).
+     *
+     * Contrast with @Version, which takes no lock at all and only DETECTS a conflict when it
+     * writes. Here the conflict is PREVENTED — the second transaction blocks at the SELECT
+     * until the first commits, then reads the already-updated row.
+     *
+     *   optimistic  = read freely, fail at write, retry     → cheap when conflicts are rare
+     *   pessimistic = queue at read, never fail, never retry → cheaper when they are common
+     *
+     * The cost is real: the lock is held for the whole transaction, so concurrent callers
+     * serialise, and a lock that is never released is a deadlock waiting to happen. Hence the
+     * timeout below — without it a blocked request waits forever.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"))
+    @Query("SELECT p FROM Product p WHERE p.id = :id")
+    Optional<Product> findByIdForUpdate(@Param("id") String id);
 
     /**
      * N+1 fix: fetch each product's categories in the SAME query via an entity graph

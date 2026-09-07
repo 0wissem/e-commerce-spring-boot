@@ -45,6 +45,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
+                        // Stock mutation is triggered by a CUSTOMER placing an order, not by an
+                        // admin editing the catalogue — so it needs authentication, not ADMIN.
+                        // order-service forwards the caller's JWT to reach here.
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/stock/*").authenticated()
                         .anyRequest().hasRole("ADMIN")
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter())));

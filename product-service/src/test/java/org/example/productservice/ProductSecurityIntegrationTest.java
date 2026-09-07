@@ -88,4 +88,45 @@ class ProductSecurityIntegrationTest {
         assertThat(postProduct(tokenWithRole("CONSUMER"))).isEqualTo(403);
         assertThat(postProduct(tokenWithRole("ADMIN"))).isNotIn(401, 403);
     }
+
+    /**
+     * REGRESSION TEST for a bug that reached the running stack.
+     *
+     * The stock endpoints were originally caught by `.anyRequest().hasRole("ADMIN")`, but they
+     * are triggered by a CUSTOMER placing an order, not by an admin editing the catalogue. So
+     * order-service — forwarding a CONSUMER token — got a 403 and every order failed.
+     *
+     * Nothing caught it: order-service mocks ProductServiceClient entirely, and product-service
+     * had no test for this path. It took a manual call against the running stack to find.
+     *
+     * The rule this pins: stock mutation requires AUTHENTICATION, not ADMIN. If someone
+     * re-tightens it to hasRole("ADMIN"), the CONSUMER assertion below fails immediately.
+     */
+    @Test
+    @DisplayName("POST /stock/decrement: anonymous → 401, but a CONSUMER must NOT get 403")
+    void stockMutationRequiresAuthenticationNotAdmin() {
+        assertThat(decrementStock(null))
+                .as("anonymous callers must still be rejected")
+                .isEqualTo(401);
+
+        assertThat(decrementStock(tokenWithRole("CONSUMER")))
+                .as("a CONSUMER places orders, so this must not be forbidden")
+                .isNotIn(401, 403);
+
+        assertThat(decrementStock(tokenWithRole("ADMIN")))
+                .as("an ADMIN is also allowed")
+                .isNotIn(401, 403);
+    }
+
+    /** Hits the stock endpoint for a product that need not exist — we assert on AUTH, not on 404. */
+    private int decrementStock(String bearer) {
+        RestClient.RequestBodySpec req = client.post()
+                .uri("/api/products/{id}/stock/decrement", "no-such-product")
+                .contentType(MediaType.APPLICATION_JSON);
+        if (bearer != null) {
+            req = req.header(HttpHeaders.AUTHORIZATION, "Bearer " + bearer);
+        }
+        return req.body(Map.of("quantity", 1))
+                .exchange((request, response) -> response.getStatusCode().value());
+    }
 }

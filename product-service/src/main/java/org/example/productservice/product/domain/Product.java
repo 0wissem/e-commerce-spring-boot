@@ -9,6 +9,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import org.example.productservice.category.domain.Category;
 import org.hibernate.annotations.SQLRestriction;
 
@@ -47,16 +48,7 @@ public class Product {
     @Column(nullable = false)
     private String name;
 
-    /**
-     * Legacy floating-point price. Still written during the expand/contract overlap so that an
-     * older instance running alongside this one keeps working. Dropped in a later migration.
-     * Never read for calculations — {@link #priceAmount} is the source of truth.
-     */
-    @Deprecated
-    @Column(name = "price", nullable = false)
-    private double price;
-
-    /** The real price. Exact decimal, backed by NUMERIC(12,2). */
+    /** The price. Exact decimal, backed by NUMERIC(12,2). The legacy double is gone (V8). */
     @Column(name = "price_amount", precision = 12, scale = MONEY_SCALE)
     private BigDecimal priceAmount;
 
@@ -66,6 +58,18 @@ public class Product {
 
     @Column(nullable = false)
     private int stockQuantity;
+
+    /**
+     * Optimistic-lock version, managed entirely by Hibernate — never set it by hand.
+     *
+     * Every UPDATE becomes `... SET version = version + 1 WHERE id = ? AND version = ?`.
+     * If a concurrent transaction already incremented it, zero rows match and Hibernate
+     * throws OptimisticLockException. No row lock is taken: conflicts are DETECTED at
+     * write time, not PREVENTED at read time.
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     /** Business identifier, distinct from the surrogate UUID id. Unique. */
     @Column(name = "sku", nullable = false, length = 64)
@@ -104,6 +108,35 @@ public class Product {
         updatedAt = Instant.now();
     }
 
+    /**
+     * Removes {@code quantity} units from stock.
+     *
+     * The invariant lives HERE, in the domain, not in the service: an entity should never be
+     * able to reach an invalid state, whoever is calling it. The service decides *when* to
+     * decrement; the entity decides whether it is allowed.
+     *
+     * @throws InsufficientStockException if the order would drive stock below zero
+     */
+    public void decrementStock(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity to decrement must be positive");
+        }
+        if (stockQuantity < quantity) {
+            throw new InsufficientStockException(id, stockQuantity, quantity);
+        }
+        this.stockQuantity -= quantity;
+    }
+
+    /** Puts units back — used when an order is cancelled. */
+    public void incrementStock(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity to increment must be positive");
+        }
+        this.stockQuantity += quantity;
+    }
+
+    public Long getVersion() { return version; }
+
     private static String generateSku(String id) {
         String seed = (id == null ? UUID.randomUUID().toString() : id).replace("-", "");
         return "SKU-" + seed.substring(0, Math.min(10, seed.length())).toUpperCase();
@@ -116,15 +149,6 @@ public class Product {
         this.name = name;
         this.stockQuantity = stockQuantity;
         setPriceAmount(priceAmount);
-    }
-
-    /**
-     * @deprecated pass a {@link BigDecimal} — a double cannot represent 0.10 exactly.
-     * Kept so existing callers compile during the migration.
-     */
-    @Deprecated
-    public Product(String id, String name, double price, int stockQuantity) {
-        this(id, name, BigDecimal.valueOf(price), stockQuantity);
     }
 
     /**
@@ -145,24 +169,15 @@ public class Product {
 
     public BigDecimal getPriceAmount() { return priceAmount; }
 
-    /** Writes both columns — the new one is authoritative, the legacy double is kept in sync. */
+    /** Normalises to 2 dp on the way in, so the entity can never hold a value the column can't. */
     public void setPriceAmount(BigDecimal priceAmount) {
         this.priceAmount = priceAmount == null
                 ? null
                 : priceAmount.setScale(MONEY_SCALE, MONEY_ROUNDING);
-        this.price = this.priceAmount == null ? 0d : this.priceAmount.doubleValue();
     }
 
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
-
-    /** @deprecated use {@link #getPriceAmount()}. */
-    @Deprecated
-    public double getPrice() { return price; }
-
-    /** @deprecated use {@link #setPriceAmount(BigDecimal)}. */
-    @Deprecated
-    public void setPrice(double price) { setPriceAmount(BigDecimal.valueOf(price)); }
 
     public int getStockQuantity() { return stockQuantity; }
     public void setStockQuantity(int stockQuantity) { this.stockQuantity = stockQuantity; }

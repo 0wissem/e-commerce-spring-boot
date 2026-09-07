@@ -41,7 +41,7 @@ class ProductCacheTest extends AbstractIntegrationTest {
     }
 
     private Product product() {
-        return new Product("p1", "Keyboard", 100.0, 5);
+        return new Product("p1", "Keyboard", new BigDecimal("100.00"), 5);
     }
 
     @Test

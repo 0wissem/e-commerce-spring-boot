@@ -123,7 +123,7 @@ class ProductServiceTest {
     @Test
     @DisplayName("delete: is a SOFT delete (stamps deletedAt, saves, never hard-deletes)")
     void delete_isSoftDelete() {
-        Product product = new Product("p1", "Keyboard", 100.0, 5);
+        Product product = new Product("p1", "Keyboard", new BigDecimal("100.00"), 5);
         when(productRepository.findById("p1")).thenReturn(Optional.of(product));
 
         service.delete("p1");

@@ -11,6 +11,9 @@ public interface IProductRepository {
     List<Product> findAll();
     Page<Product> findAll(Pageable pageable);
     Optional<Product> findById(String id);
+
+    /** Row-locked read (SELECT ... FOR UPDATE). Concurrent callers queue instead of colliding. */
+    Optional<Product> findByIdForUpdate(String id);
     Optional<Product> findByName(String name);
     Product save(Product product);
     boolean existsById(String id);

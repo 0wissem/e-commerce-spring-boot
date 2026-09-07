@@ -2,6 +2,7 @@ package org.example.productservice.product.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.productservice.product.application.IProductService;
+import org.example.productservice.product.application.StockService;
 import org.example.productservice.product.application.dto.ProductRequest;
 import org.example.productservice.product.application.dto.ProductResponse;
 import org.example.productservice.shared.exception.GlobalExceptionHandler;
@@ -39,6 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ProductControllerTest {
 
     private final IProductService productService = mock(IProductService.class);
+    private final StockService stockService = mock(StockService.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private MockMvc mockMvc;
 
@@ -48,7 +50,7 @@ class ProductControllerTest {
         validator.afterPropertiesSet(); // initialise so @Valid is actually enforced
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new ProductController(productService))
+                .standaloneSetup(new ProductController(productService, stockService))
                 .setControllerAdvice(new GlobalExceptionHandler()) // so exceptions → 404/400
                 .setValidator(validator)
                 .build();
