@@ -40,12 +40,7 @@ public class Order {
     @Column(nullable = false)
     private OrderStatus status;
 
-    /** @deprecated legacy double total, dual-written during the expand/contract overlap. */
-    @Deprecated
-    @Column(name = "total_price", nullable = false)
-    private double totalPrice;
-
-    /** The real total. Exact decimal, and always equal to the sum of the line amounts. */
+    /** The total. Exact decimal, always equal to the sum of the line amounts. Legacy double dropped in V6. */
     @Column(name = "total_amount", precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
@@ -89,12 +84,6 @@ public class Order {
         setTotalAmount(totalAmount);
     }
 
-    /** @deprecated pass a BigDecimal. Kept so existing callers compile during the migration. */
-    @Deprecated
-    public Order (String id, String customerId, String customerName, double totalPrice, OrderStatus orderStatus) {
-        this(id, customerId, customerName, BigDecimal.valueOf(totalPrice), orderStatus);
-    }
-
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
@@ -118,20 +107,12 @@ public class Order {
         return status;
     }
 
-    /** @deprecated use {@link #getTotalAmount()}. */
-    @Deprecated
-    public double getTotalPrice() {
-        return totalPrice;
-    }
-
     public BigDecimal getTotalAmount() { return totalAmount; }
 
-    /** Writes both columns — the new one is authoritative, the legacy double stays in sync. */
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount == null
                 ? null
                 : totalAmount.setScale(2, RoundingMode.HALF_UP);
-        this.totalPrice = this.totalAmount == null ? 0d : this.totalAmount.doubleValue();
     }
 
     public String getCurrency() { return currency; }
@@ -175,12 +156,6 @@ public class Order {
 
     public void setStatus(OrderStatus status) {
         this.status = status;
-    }
-
-    /** @deprecated use {@link #setTotalAmount(BigDecimal)}. */
-    @Deprecated
-    public void setTotalPrice(double totalPrice) {
-        setTotalAmount(BigDecimal.valueOf(totalPrice));
     }
 
     public void setCustomerId(String customerId) {

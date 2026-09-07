@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,11 +46,14 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrderService(orderRepository, productServiceClient, customerServiceClient, orderMapper);
+        service = new OrderService(orderRepository, productServiceClient, customerServiceClient, orderMapper,
+                new OrderPersister(orderRepository),
+                // Same-thread executor: the unit test wants determinism, not parallelism.
+                Runnable::run);
     }
 
     private Order order(String id) {
-        Order o = new Order(id, "cust-1", "Alice", 120.0, OrderStatus.PENDING);
+        Order o = new Order(id, "cust-1", "Alice", new BigDecimal("120.00"), OrderStatus.PENDING);
         o.setOrderItems(List.of());
         return o;
     }
