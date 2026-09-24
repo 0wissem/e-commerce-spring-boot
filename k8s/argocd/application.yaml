@@ -18,7 +18,7 @@ spec:
     directory:
       recurse: false # ignore the eks/ and argocd/ subdirs
       # Only the minikube manifests — excludes 04-external-db.yaml (other env) and *.md.
-      include: "{00-namespace.yaml,01-config.yaml,02-postgres.yaml,03-apps.yaml,05-hpa.yaml}"
+      include: "{00-namespace.yaml,01-config.yaml,02-postgres.yaml,03-apps.yaml,05-hpa.yaml,07-kafka.yaml,08-notification-service.yaml}"
 
   destination:
     server: https://kubernetes.default.svc

@@ -2,7 +2,7 @@ package org.example.productservice.product.application;
 
 import org.example.productservice.category.domain.ICategoryRepository;
 import org.example.productservice.product.domain.IStockEventPublisher;
-import org.example.productservice.product.domain.StockUpdatedEvent;
+import org.example.productservice.product.domain.LowStockPolicy;
 import org.example.productservice.product.application.dto.ProductRequest;
 import org.example.productservice.product.application.dto.ProductResponse;
 import org.example.productservice.product.application.dto.ProductSearchRequest;
@@ -26,15 +26,18 @@ public class ProductService implements IProductService {
     private final ICategoryRepository categoryRepository;
     private final ProductMapper productMapper;
     private final IStockEventPublisher stockEventPublisher;
+    private final LowStockPolicy lowStockPolicy;
 
     public ProductService(IProductRepository productRepository,
                           ICategoryRepository categoryRepository,
                           ProductMapper productMapper,
-                          IStockEventPublisher stockEventPublisher) {
+                          IStockEventPublisher stockEventPublisher,
+                          LowStockPolicy lowStockPolicy) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.productMapper = productMapper;
         this.stockEventPublisher = stockEventPublisher;
+        this.lowStockPolicy = lowStockPolicy;
     }
 
     @Override
@@ -81,6 +84,7 @@ public class ProductService implements IProductService {
     public ProductResponse update(String id, ProductRequest request) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+        int stockBefore = product.getStockQuantity();
         product.setName(request.name());
         product.setPriceAmount(request.price());
         product.setStockQuantity(request.stockQuantity());
@@ -89,7 +93,7 @@ public class ProductService implements IProductService {
             product.setCategories(categoryRepository.findAllByIds(request.categoryIds()));
         }
         ProductResponse response = productMapper.toResponse(productRepository.save(product));
-        stockEventPublisher.publish(new StockUpdatedEvent(product.getId(), product.getName(), product.getStockQuantity()));
+        publishIfLow(product, stockBefore);   // an admin editing stock down can cross it too
         return response;
     }
 
@@ -107,12 +111,12 @@ public class ProductService implements IProductService {
     public ProductResponse decrementStock(String id, int quantity) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+        int stockBefore = product.getStockQuantity();
 
         product.decrementStock(quantity);   // the invariant is enforced by the entity
 
         ProductResponse response = productMapper.toResponse(productRepository.save(product));
-        stockEventPublisher.publish(
-                new StockUpdatedEvent(product.getId(), product.getName(), product.getStockQuantity()));
+        publishIfLow(product, stockBefore);
         return response;
     }
 
@@ -134,12 +138,12 @@ public class ProductService implements IProductService {
     public ProductResponse decrementStockPessimistic(String id, int quantity) {
         Product product = productRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+        int stockBefore = product.getStockQuantity();
 
         product.decrementStock(quantity);
 
         ProductResponse response = productMapper.toResponse(productRepository.save(product));
-        stockEventPublisher.publish(
-                new StockUpdatedEvent(product.getId(), product.getName(), product.getStockQuantity()));
+        publishIfLow(product, stockBefore);
         return response;
     }
 
@@ -152,10 +156,20 @@ public class ProductService implements IProductService {
 
         product.incrementStock(quantity);
 
-        ProductResponse response = productMapper.toResponse(productRepository.save(product));
-        stockEventPublisher.publish(
-                new StockUpdatedEvent(product.getId(), product.getName(), product.getStockQuantity()));
-        return response;
+        // Stock only goes UP here, so it can never cross the low-stock threshold downward.
+        return productMapper.toResponse(productRepository.save(product));
+    }
+
+    /**
+     * Hands a low-stock event to the port — it is NOT on Kafka yet when this returns.
+     *
+     * We are inside the transaction here, and it can still fail: with optimistic locking the
+     * version conflict only surfaces at flush, AFTER this line. The adapter therefore holds the
+     * event until commit (see AfterCommitStockEventPublisher). Sending right here would alert on
+     * decrements that StockService is about to roll back and retry — phantom alerts.
+     */
+    private void publishIfLow(Product product, int stockBefore) {
+        lowStockPolicy.evaluate(product, stockBefore).ifPresent(stockEventPublisher::publish);
     }
 
     @Override

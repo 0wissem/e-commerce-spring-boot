@@ -17,11 +17,12 @@ An e-commerce Spring Boot app that has deliberately evolved through the full jou
 Monolith → Load-tested → Proved degradation → Extracted microservice → API Gateway → Outbox + Kafka → Weighted routing → Phase 4 cleanup
 ```
 
-It now has four deployable services:
+It now has five deployable services:
 - **Monolith** (`spring-boot-0`) — owns **customers** only. Orders were extracted to order-service; products/categories are long gone. Its codebase and DB are now customers-only — no Kafka, no mail.
 - **product-service** — owns **products** and **categories**, with its own PostgreSQL RDS
 - **order-service** — owns **orders** and **order_items**, its own PostgreSQL DB; calls product-service (product snapshot) and the monolith (customer-name snapshot) over HTTP on create
-- **gateway** — Spring Cloud Gateway routing `/api/orders/**` → order-service, `/api/products/**` & `/api/categories/**` → product-service, everything else → monolith
+- **notification-service** — owns **notifications**, its own PostgreSQL DB; consumes `stock.low` from Kafka (published by product-service after commit when stock crosses the threshold) and emails the stock team (Mailpit locally). Idempotent consumer, retries + dead-letter topic. See `docs/low-stock-alerts.md`
+- **gateway** — Spring Cloud Gateway routing `/api/orders/**` → order-service, `/api/products/**` & `/api/categories/**` → product-service, `/api/notifications/**` → notification-service, everything else → monolith
 
 **Phase 4 — ✅ COMPLETE**
 1. ✅ Remove product code (domain/application/infrastructure/api) from monolith
@@ -139,7 +140,7 @@ Auth wiring:
 | DB (prod) | AWS RDS PostgreSQL |
 | DB (dev) | H2 in-memory |
 | Migrations | Flyway |
-| Messaging | Kafka (Confluent Cloud) — decommissioned; the monolith's low-stock-alert consumer was removed (monolith no longer depends on Kafka or mail) |
+| Messaging | Kafka — local KRaft broker in docker compose (+ Kafka UI :8085). Used for low-stock alerts: product-service → `stock.low` → notification-service. The older Confluent Cloud outbox sync stays decommissioned |
 | Gateway | Spring Cloud Gateway |
 | CI/CD | GitHub Actions |
 | Hosting | AWS Elastic Beanstalk + ECR |

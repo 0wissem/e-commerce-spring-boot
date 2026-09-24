@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [".", "product-service", "order-service"] # "." = the monolith (repo root)
+        service: [".", "product-service", "order-service", "notification-service"] # "." = the monolith (repo root)
     name: test (${{ matrix.service }})
     steps:
       - uses: actions/checkout@v4

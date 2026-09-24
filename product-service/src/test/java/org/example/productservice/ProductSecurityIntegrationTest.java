@@ -39,6 +39,7 @@ class ProductSecurityIntegrationTest {
         r.add("spring.datasource.url", AbstractIntegrationTest.POSTGRES::getJdbcUrl);
         r.add("spring.datasource.username", AbstractIntegrationTest.POSTGRES::getUsername);
         r.add("spring.datasource.password", AbstractIntegrationTest.POSTGRES::getPassword);
+        r.add("spring.kafka.bootstrap-servers", AbstractIntegrationTest.KAFKA::getBootstrapServers);
         r.add("jwt.secret", () -> SECRET);
     }
 

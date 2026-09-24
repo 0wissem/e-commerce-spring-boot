@@ -1,4 +1,5 @@
-# Full local stack: one Postgres PER SERVICE + monolith + product-service + order-service + gateway.
+# Full local stack: one Postgres PER SERVICE + monolith + product-service + order-service +
+# notification-service + gateway, plus Kafka (+ Kafka UI :8085) and Mailpit (inbox :8025).
 # Bring it up with:  docker compose up -d --build
 # Front door is the gateway on http://localhost:8090
 #
@@ -58,6 +59,74 @@ services:
       timeout: 3s
       retries: 10
 
+  postgres-notifications:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: notifications
+    ports:
+      - "5437:5432"
+    volumes:
+      - pgdata-notifications:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------- Event backbone ----------
+  # Single-node Kafka in KRaft mode: the broker is its own controller, so no ZooKeeper.
+  # Two listeners, because the broker must hand clients an address THEY can reach:
+  #   INTERNAL kafka:29092     -> other containers on the compose network
+  #   EXTERNAL localhost:9092  -> tools and apps running on the Mac
+  kafka:
+    image: apache/kafka:3.9.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # One broker, so replication factor 1 everywhere (a real cluster uses 3).
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Topics are declared by the services (NewTopic beans), never created by accident.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # Web UI to watch topics, partitions, offsets, consumer groups and lag: http://localhost:8085
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.3.0
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    ports:
+      - "8085:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # Fake SMTP server: catches every email, never delivers it. Inbox UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # web inbox
+
   monolith:
     build:
       context: .
@@ -82,16 +151,17 @@ services:
       DB_URL: jdbc:postgresql://postgres-products:5432/products
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
-      # Kafka is excluded via autoconfigure, but the properties still reference these.
-      KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-      KAFKA_API_KEY: dummy
-      KAFKA_API_SECRET: dummy
+      # Publishes low-stock events. Inside the compose network the broker is kafka:29092.
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      STOCK_LOW_THRESHOLD: 5
       # Same shared secret as the monolith → validates its JWTs.
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-please-0123456789abcdef0123456789abcdef}
     ports:
       - "8081:8081"
     depends_on:
       postgres-products:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
 
   order-service:
@@ -110,20 +180,44 @@ services:
       postgres-orders:
         condition: service_healthy
 
+  notification-service:
+    build: ./notification-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres-notifications:5432/notifications
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-please-0123456789abcdef0123456789abcdef}
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres-notifications:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
   gateway:
     build: ./gateway
     environment:
       MONOLITH_URL: http://monolith:8080
       PRODUCT_SERVICE_URL: http://product-service:8081
       ORDER_SERVICE_URL: http://order-service:8082
+      NOTIFICATION_SERVICE_URL: http://notification-service:8083
     ports:
       - "8090:8082"            # gateway listens on 8082 in-container; exposed on host 8090
     depends_on:
       - monolith
       - product-service
       - order-service
+      - notification-service
 
 volumes:
   pgdata-monolith:
   pgdata-products:
   pgdata-orders:
+  pgdata-notifications:
+  kafka-data:

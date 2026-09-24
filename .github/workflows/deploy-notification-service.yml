@@ -1,0 +1,46 @@
+name: Build and Push Notification Service to ECR
+
+# MANUAL-ONLY while the AWS environments are torn down (free-tier credits
+# exhausted). Restore the `push:` trigger below when they are live again.
+#
+# PREREQUISITE before the first run: the `notification-service` ECR repository. It is declared
+# in terraform/variables.tf (ecr_repositories) but only exists after a MANUAL terraform apply.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - master
+  #     - dev
+  #   paths:
+  #     - 'notification-service/**'
+  #     - '.github/workflows/deploy-notification-service.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC — no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::110911131381:role/github-actions-ecr
+          aws-region: eu-west-3
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag and push image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/notification-service:$IMAGE_TAG -t $ECR_REGISTRY/notification-service:latest ./notification-service
+          docker push $ECR_REGISTRY/notification-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/notification-service:latest

@@ -10,7 +10,7 @@ variable "ecr_repositories" {
     in the build pipelines (docker build -t .../<name>) and in the k8s manifests.
   EOT
   type        = list(string)
-  default     = ["spring-boot-0", "product-service", "gateway", "order-service"]
+  default     = ["spring-boot-0", "product-service", "gateway", "order-service", "notification-service"]
 }
 
 # ─── EKS ─────────────────────────────────────────────────────────────────────

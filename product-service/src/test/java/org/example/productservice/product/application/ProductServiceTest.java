@@ -6,12 +6,14 @@ import org.example.productservice.product.application.dto.ProductResponse;
 import org.example.productservice.product.domain.IProductRepository;
 import org.example.productservice.product.domain.IStockEventPublisher;
 import org.example.productservice.product.domain.Product;
-import org.example.productservice.product.domain.StockUpdatedEvent;
+import org.example.productservice.product.domain.LowStockPolicy;
+import org.example.productservice.product.domain.StockLowEvent;
 import org.example.productservice.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -49,12 +51,14 @@ class ProductServiceTest {
     // The mapper is PURE logic (no I/O) → use the real one. Rule of thumb: don't mock
     // what you can cheaply build for real; mock only the things at the edges (I/O).
     private final ProductMapper productMapper = new ProductMapper();
+    // Pure domain rule, no I/O → real instance too. Threshold 5 for every test here.
+    private final LowStockPolicy lowStockPolicy = new LowStockPolicy(5);
 
     private ProductService service;
 
     @BeforeEach
     void setUp() {
-        service = new ProductService(productRepository, categoryRepository, productMapper, stockEventPublisher);
+        service = new ProductService(productRepository, categoryRepository, productMapper, stockEventPublisher, lowStockPolicy);
     }
 
     @Test
@@ -105,8 +109,8 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("update: applies changes and publishes a stock event")
-    void update_savesChanges_andPublishesStockEvent() {
+    @DisplayName("update: applies changes; raising stock publishes nothing")
+    void update_savesChanges_withoutEvent_whenStockRises() {
         Product existing = new Product("p1", "Old", new BigDecimal("10.00"), 1);
         when(productRepository.findById("p1")).thenReturn(Optional.of(existing));
         when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -116,8 +120,75 @@ class ProductServiceTest {
 
         assertThat(response.name()).isEqualTo("New");
         assertThat(response.stockQuantity()).isEqualTo(7);
-        // the important side effect: a stock event is published on update
-        verify(stockEventPublisher).publish(any(StockUpdatedEvent.class));
+        verifyNoInteractions(stockEventPublisher);
+    }
+
+    @Test
+    @DisplayName("update: an admin cutting stock across the threshold publishes a low-stock event")
+    void update_publishesStockLow_whenAdminCutsStockAcrossThreshold() {
+        Product existing = new Product("p1", "Keyboard", new BigDecimal("10.00"), 20);
+        when(productRepository.findById("p1")).thenReturn(Optional.of(existing));
+        when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.update("p1", new ProductRequest("Keyboard", null, null, new BigDecimal("10.00"), null, 2, null));
+
+        verify(stockEventPublisher).publish(any(StockLowEvent.class));
+    }
+
+    @Test
+    @DisplayName("decrementStock: crossing the threshold publishes ONE event with the full contract")
+    void decrementStock_publishesStockLow_whenCrossingThreshold() {
+        Product product = new Product("p1", "Keyboard", new BigDecimal("10.00"), 6);
+        when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.decrementStock("p1", 2);   // 6 -> 4, threshold 5
+
+        ArgumentCaptor<StockLowEvent> captor = ArgumentCaptor.forClass(StockLowEvent.class);
+        verify(stockEventPublisher).publish(captor.capture());
+        StockLowEvent event = captor.getValue();
+        assertThat(event.productId()).isEqualTo("p1");
+        assertThat(event.productName()).isEqualTo("Keyboard");
+        assertThat(event.stockQuantity()).isEqualTo(4);
+        assertThat(event.threshold()).isEqualTo(5);
+        assertThat(event.eventId()).isNotBlank();
+        assertThat(event.schemaVersion()).isEqualTo(StockLowEvent.SCHEMA_VERSION);
+        assertThat(event.occurredAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("decrementStock: selling an item that is ALREADY low publishes nothing (no alert spam)")
+    void decrementStock_publishesNothing_whenAlreadyBelowThreshold() {
+        Product product = new Product("p1", "Keyboard", new BigDecimal("10.00"), 4);
+        when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.decrementStock("p1", 1);   // 4 -> 3: low, but it was already low
+
+        verifyNoInteractions(stockEventPublisher);
+    }
+
+    @Test
+    @DisplayName("decrementStock: insufficient stock throws before anything is published")
+    void decrementStock_publishesNothing_whenStockInsufficient() {
+        Product product = new Product("p1", "Keyboard", new BigDecimal("10.00"), 6);
+        when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+
+        assertThatThrownBy(() -> service.decrementStock("p1", 50))
+                .isInstanceOf(org.example.productservice.product.domain.InsufficientStockException.class);
+        verifyNoInteractions(stockEventPublisher);
+    }
+
+    @Test
+    @DisplayName("incrementStock: restocking never publishes a low-stock event")
+    void incrementStock_neverPublishes() {
+        Product product = new Product("p1", "Keyboard", new BigDecimal("10.00"), 0);
+        when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.incrementStock("p1", 3);
+
+        verifyNoInteractions(stockEventPublisher);
     }
 
     @Test

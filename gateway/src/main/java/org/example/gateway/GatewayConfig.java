@@ -14,6 +14,7 @@ public class GatewayConfig {
             RouteLocatorBuilder builder,
             @Value("${PRODUCT_SERVICE_URL:http://localhost:8081}") String productServiceUrl,
             @Value("${ORDER_SERVICE_URL:http://localhost:8082}") String orderServiceUrl,
+            @Value("${NOTIFICATION_SERVICE_URL:http://localhost:8083}") String notificationServiceUrl,
             @Value("${MONOLITH_URL:http://localhost:8080}") String monolithUrl) {
 
         return builder.routes()
@@ -21,6 +22,9 @@ public class GatewayConfig {
                 .route("order-service", r -> r
                         .path("/api/orders/**")
                         .uri(orderServiceUrl))
+                .route("notification-service", r -> r
+                        .path("/api/notifications/**")
+                        .uri(notificationServiceUrl))
                 .route("product-service", r -> r
                         .path("/api/products/**", "/api/categories/**")
                         .uri(productServiceUrl))

@@ -1,0 +1,33 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: notification-service
+  description: Consumes stock.low events from Kafka and emails the stock team. Idempotent consumer with retries and a dead-letter topic.
+  annotations:
+    github.com/project-slug: 0wissem/e-commerce-spring-boot
+  tags: [java, spring-boot, postgresql, kafka, jwt]
+spec:
+  type: service
+  lifecycle: experimental
+  owner: backend-team
+  system: ecommerce-platform
+  providesApis: [notifications-api]
+  dependsOn: [component:product-service]
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: notifications-api
+  description: Read-only history of notifications sent (ADMIN only).
+  tags: [rest]
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: backend-team
+  system: ecommerce-platform
+  definition: |
+    openapi: 3.0.0
+    info: { title: notifications-api, version: "1" }
+    paths:
+      /api/notifications: { get: { summary: List notifications, newest first } }
+      /api/notifications/{id}: { get: { summary: One notification } }
