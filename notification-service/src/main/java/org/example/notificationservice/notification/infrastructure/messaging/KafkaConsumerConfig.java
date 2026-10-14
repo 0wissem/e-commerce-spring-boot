@@ -1,25 +1,19 @@
 package org.example.notificationservice.notification.infrastructure.messaging;
 
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.example.notificationservice.notification.application.InvalidEventException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
-import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.DelegatingByTypeSerializer;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
-import org.springframework.util.backoff.ExponentialBackOff;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -28,64 +22,37 @@ import java.util.Map;
  * What happens when handling a record FAILS — the part of Kafka that separates a demo from a system.
  *
  * <pre>
- *   record ──> listener throws
- *                 │
- *                 ├─ permanent? (bad JSON, invalid event) ──────────────> stock.low.DLT  (no retries)
- *                 │
- *                 └─ transient? (SMTP down) ─> retry 1s, 2s, 4s ─> still failing ─> stock.low.DLT
+ *   stock.low ──> listener throws
+ *                   │
+ *                   ├─ permanent? (bad JSON, invalid event) ─────────────────> stock.low.DLT
+ *                   │
+ *                   └─ transient? (SMTP down) ──> stock.low-retry ──exhausted──> stock.low.DLT
  * </pre>
  *
- * Why a dead-letter topic at all: Kafka consumes a partition strictly in order. Without somewhere
- * to put a record that can never succeed, the consumer retries it forever and every event behind
- * it on that partition waits — one bad message halts alerts for a third of the products.
+ * The retries are NON-BLOCKING: {@code @RetryableTopic} on the listener forwards the failure to a
+ * retry topic instead of sleeping on the consumer thread. This was not the first design — the
+ * blocking version was measured on the cluster and cost 7s of consumer thread per failing record,
+ * stalling every healthy event behind it. See docs/low-stock-alerts.md.
  *
- * Boot's auto-configured listener container factory picks up the {@link DefaultErrorHandler} bean
- * on its own; no custom factory is needed.
+ * There is deliberately NO DefaultErrorHandler bean any more: the retry-topic configuration owns
+ * error handling for this listener, and the exhausted records are delivered to the @DltHandler.
  */
 @Configuration
 public class KafkaConsumerConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(KafkaConsumerConfig.class);
-
-    @Bean
-    public DefaultErrorHandler kafkaErrorHandler(
-            KafkaTemplate<Object, Object> deadLetterTemplate,
-            @Value("${app.kafka.topics.stock-low-dlt}") String deadLetterTopic,
-            @Value("${app.kafka.retry.initial-interval-ms}") long initialIntervalMs,
-            @Value("${app.kafka.retry.multiplier}") double multiplier,
-            @Value("${app.kafka.retry.max-retries}") int maxRetries) {
-
-        // Same partition number in the DLT as the original: per-product ordering survives in the
-        // DLT too, which matters if someone replays it. Needs the DLT to have >= as many partitions.
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(deadLetterTemplate,
-                (record, failure) -> {
-                    log.error("Giving up on {}-{}@{} (key {}): {} -> {}", record.topic(), record.partition(),
-                            record.offset(), record.key(), failure.getMessage(), deadLetterTopic);
-                    return new TopicPartition(deadLetterTopic, record.partition());
-                });
-
-        ExponentialBackOff backOff = new ExponentialBackOff(initialIntervalMs, multiplier);
-        backOff.setMaxAttempts(maxRetries);
-
-        DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
-        // DeserializationException is already on Spring's not-retryable list (bad bytes stay bad).
-        // An event that parsed but is unusable is just as permanent.
-        handler.addNotRetryableExceptions(InvalidEventException.class);
-        handler.setRetryListeners((record, failure, attempt) ->
-                log.warn("Attempt {} failed for {}-{}@{}: {}", attempt, record.topic(),
-                        record.partition(), record.offset(), failure.getMessage()));
-        return handler;
-    }
-
     /**
-     * The DLT producer has to cope with two very different payloads:
-     * - a record that failed DESERIALIZATION: we only have its original raw bytes -> write them
-     *   back byte-for-byte, so the DLT shows exactly what was received;
-     * - a record that failed PROCESSING: it is a StockLowEvent object -> write it as JSON.
+     * The template the retry machinery uses to forward records — @Primary because
+     * {@code @RetryableTopic} resolves a single KafkaOperations bean and Boot auto-configures one too.
+     *
+     * It must cope with two very different payloads:
+     * - a record that failed DESERIALIZATION: only the original raw bytes exist -> write them back
+     *   byte-for-byte, so the DLT shows exactly what was received;
+     * - a record that failed PROCESSING: a StockLowEvent object -> write it as JSON.
      * One serializer per type, picked at send time. Order matters: first assignable match wins.
      */
     @Bean
-    public KafkaTemplate<Object, Object> deadLetterTemplate(KafkaProperties properties) {
+    @Primary
+    public KafkaTemplate<Object, Object> retryAndDltTemplate(KafkaProperties properties) {
         Map<Class<?>, Serializer<?>> byType = new LinkedHashMap<>();
         byType.put(byte[].class, new ByteArraySerializer());
         byType.put(String.class, new StringSerializer());
@@ -104,7 +71,11 @@ public class KafkaConsumerConfig {
         return json;
     }
 
-    /** The consumer owns its dead-letter topic; the source topic belongs to product-service. */
+    /**
+     * The consumer owns its dead-letter topic; the source topic belongs to product-service.
+     * Declared explicitly so it keeps 3 partitions — the DLT mirrors the source partitioning, which
+     * keeps per-product ordering intact for a replay.
+     */
     @Bean
     public NewTopic stockLowDeadLetterTopic(@Value("${app.kafka.topics.stock-low-dlt}") String name,
                                            @Value("${app.kafka.topics.partitions}") int partitions,

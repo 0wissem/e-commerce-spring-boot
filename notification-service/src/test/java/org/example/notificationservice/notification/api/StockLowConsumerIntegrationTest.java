@@ -14,6 +14,7 @@ import org.example.notificationservice.notification.domain.INotificationSender;
 import org.example.notificationservice.notification.domain.Notification;
 import org.example.notificationservice.notification.domain.NotificationStatus;
 import org.example.notificationservice.notification.infrastructure.NotificationJpaRepository;
+import org.example.notificationservice.notification.infrastructure.messaging.FailureHeaders;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -55,7 +56,7 @@ class StockLowConsumerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String TOPIC = "stock.low";
     private static final String DLT = "stock.low.DLT";
-    private static final int TOTAL_ATTEMPTS = 3;   // 1 delivery + max-retries=2
+    private static final int TOTAL_ATTEMPTS = 3;   // app.kafka.retry.attempts: first delivery + 2 retries
     private static final Duration WAIT = Duration.ofSeconds(30);
 
     private static KafkaProducer<String, String> producer;
@@ -154,7 +155,7 @@ class StockLowConsumerIntegrationTest extends AbstractIntegrationTest {
 
         List<ConsumerRecord<String, String>> dead = deadLetters(productId, WAIT);
         assertThat(dead).hasSize(1);
-        assertThat(header(dead.get(0), KafkaHeaders.DLT_EXCEPTION_CAUSE_FQCN)).contains("MailSendException");
+        assertThat(header(dead.get(0), FailureHeaders.FAILURE_CLASS)).contains("MailSendException");
         assertThat(dead.get(0).value()).contains(eventId);   // the original event, as JSON
 
         Notification n = notifications.findByEventId(eventId).orElseThrow();
@@ -193,7 +194,7 @@ class StockLowConsumerIntegrationTest extends AbstractIntegrationTest {
 
         List<ConsumerRecord<String, String>> dead = deadLetters(key, WAIT);
         assertThat(dead).hasSize(1);
-        assertThat(header(dead.get(0), KafkaHeaders.DLT_EXCEPTION_CAUSE_FQCN)).contains("InvalidEventException");
+        assertThat(header(dead.get(0), FailureHeaders.FAILURE_CLASS)).contains("InvalidEventException");
         assertThat(notifications.findByEventId(eventId)).isEmpty();
         verify(sender, never()).send(any());
     }

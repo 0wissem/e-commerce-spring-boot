@@ -34,13 +34,76 @@ team gets one email. Built week of 2026-09-08 as the Kafka learning exercise par
 | Consumer: **UNIQUE(event_id)** | At-least-once ⇒ duplicates will arrive | Lookup-then-insert race sends two emails |
 | Row PENDING → email → SENT, **no @Transactional** | Don't hold a DB connection over SMTP | Same bug as HTTP-in-transaction in order-service |
 | `ErrorHandlingDeserializer` | Bad bytes become a handleable error | Poison pill blocks the partition forever (proved: unrelated test failed) |
-| Retry 1s/2s/4s → DLT; invalid events → DLT at once | Transient vs permanent failures | Infinite retries block the partition; retrying bad data is pointless |
+| Retries on a RETRY TOPIC (`@RetryableTopic`), not on the consumer thread | A failing record must not delay the healthy ones behind it | Measured on the cluster: consumption fell to 0.27 events/s during an SMTP outage |
+| Invalid events → DLT immediately (`exclude`) | Retrying the same bad bytes cannot succeed | The retry budget is burnt on records that will never work |
+| Our own `x-failure-class` / `x-failure-message` headers | The retry-topic recoverer does not forward Spring's `kafka_dlt-exception-*` | The parking lot shows `reason=[null: null]` — a dead letter with no reason |
+| `@DltHandler`, not a second `@KafkaListener` on the DLT | The DLT handler must be outside the error-handling path | A throw inside it republishes to the same DLT → an endless loop |
 | `idIsGroup = false` | Group must be `notification-service` | Listener id silently became the group (found on the live stack) |
 | Own event DTO per service (no shared jar) | Independent deploys | A shared lib release couples both services |
 | Tolerant reader + `schemaVersion` | Adding a field is non-breaking | Every new field forces a coordinated deploy |
 
 **Accepted gap:** commit and Kafka send are still two writes. Process dies between them → the alert is
 lost. Acceptable for an alert; for money, use the Outbox pattern (see INTERVIEW_STORIES Story 2).
+
+## On Kubernetes — what the cluster taught us (2026-09-15 → 10-07)
+
+It worked on compose and misbehaved on minikube. Three weeks of that was investigation, which is why
+there are no commits in between: the changes were config I kept reverting, and only the last day
+produced a decision worth recording.
+
+### 1. The cluster ran three-month-old code and looked perfectly healthy
+All pods Running, every probe green, yet the `stock.low` topic did not exist. product-service logged
+not one Kafka line: the pod was running June's pre-Kafka image.
+
+- `:latest` + `imagePullPolicy: IfNotPresent` cannot express "this exact build", so the manifest and
+  the running code can disagree with nothing to show it.
+- `spring.kafka.admin.fail-fast=false` let a service with no working admin client start up clean.
+- `minikube image load` did NOT replace the existing `:latest` in the cluster.
+- And the shell mangled the tag: in **zsh**, `-t spring-boot-0-$s:latest` applies the `:l`
+  (lowercase) parameter modifier, producing `spring-boot-0-product-serviceatest`. The real tag kept
+  pointing at the old image. Quote it: `"spring-boot-0-${s}:latest"`.
+
+Reliable route for minikube: `eval $(minikube docker-env)` and build inside the cluster's own daemon,
+then `kubectl rollout restart` — no copy step to get wrong. The durable fix is immutable tags (git
+sha) instead of `:latest`.
+
+### 2. The real bug: blocking retries turn a mail outage into lag for everyone
+
+Measured with 3 partitions and 2 replicas, a burst of 30 crossings:
+
+| | main-topic drain | consumption rate | where failures waited |
+|---|---|---|---|
+| Blocking backoff (`DefaultErrorHandler`) | **~190 s** | **0.27 events/s** | on the consumer thread |
+| Retry topics (`@RetryableTopic`) | **~40 s** | unchanged by failures | on `stock.low-retry-1000/2000` |
+
+0.27 events/s is exactly 1s + 2s + 4s of backoff per record, served on the poll thread. Kafka reads a
+partition strictly in order, so a healthy product's alert waits behind a broken one — at 1000 events
+a five-minute mail outage delays alerts that would have succeeded.
+
+**The hypothesis that was wrong:** I expected the backoff to exceed `max.poll.interval.ms`, get the
+consumer evicted and cause a rebalance/redelivery loop. It never happened — Spring pauses the
+container and keeps polling during a blocking backoff, so the group stayed stable. The damage was
+head-of-line blocking, not eviction. Worth saying out loud: the measurement killed the theory.
+
+Pinned by `HeadOfLineBlockingTest`: a failing event, then a healthy one on the SAME partition, retry
+delay 4 s — the healthy one must land in under 3 s. Put blocking retries back and it fails on the clock.
+
+### 3. Two smaller things the switch broke, and how they were caught
+- **Attempt semantics changed silently.** `DefaultErrorHandler`'s `maxRetries` counts retries AFTER
+  the first delivery; `@RetryableTopic`'s `attempts` counts TOTAL attempts. Same number, one fewer
+  try. The property is now `app.kafka.retry.attempts` so the two can't be confused again.
+- **Dead letters lost their reason** (`reason=[null: null]`) because the retry-topic recoverer
+  forwards only `kafka_original-topic`. Fixed by stamping our own headers in `RetryTopicConfig`,
+  which also survives a Spring Kafka upgrade.
+- Subclassing `RetryTopicConfigurationSupport` makes Boot's retry auto-configuration back off, so the
+  scheduler it used to supply has to be declared too ("Either a RetryTopicSchedulerWrapper or
+  TaskScheduler bean is required").
+
+### 4. Verified after the fix
+- 50 crossings under k6: lag 0, exactly 50 emails, no duplicates, no pod restarts.
+- SMTP down: main topic drains in ~40 s, failures park on the retry topics, exhausted records reach
+  `stock.low.DLT` **with the reason attached**; a fresh crossing after recovery is emailed in **1 s**.
+- `k6/low-stock-load.js` drives this (one fresh product per iteration, two orders, one crossing).
 
 ## Run it
 
@@ -89,13 +152,21 @@ product-service
 notification-service
 - `NotificationServiceTest` — idempotency, retry-after-failure, insert race, invalid events
 - `StockLowConsumerIntegrationTest` — real Kafka + Postgres: happy path, duplicate, transient failure
-  retried, persistent failure → DLT, poison pill doesn't block the partition, invalid → DLT without
-  retries, v2 event with extra fields, consumer group name
+  retried, persistent failure → DLT (with our failure headers), poison pill doesn't block the
+  partition, invalid → DLT without retries, v2 event with extra fields, consumer group name
+- `HeadOfLineBlockingTest` — the regression test for the three-week bug: a failing event must not
+  delay the healthy event behind it on the same partition (own topics + own group, so it cannot
+  steal partitions from the other context)
 - `EmailNotificationSenderTest` — real SMTP (Mailpit container), plus SMTP unreachable → exception
 - `NotificationSecurityIntegrationTest` — ADMIN-only API, open Prometheus endpoint
 
 Regression tests were verified by breaking each fix and watching them go red: send-inside-transaction,
-no idempotency check, no `ErrorHandlingDeserializer`, `idIsGroup = true`.
+no idempotency check, no `ErrorHandlingDeserializer`, `idIsGroup = true`, and blocking retries.
+
+One test was also flaky for an honest reason: `HeadOfLineBlockingTest` asserts on a stopwatch, and in
+the full suite the consumer had not been assigned its partition before the clock started. It now waits
+for the assignment first — the fix for a timing-flaky test is to remove the timing, not to widen the
+window.
 
 ## Deploy artifacts
 

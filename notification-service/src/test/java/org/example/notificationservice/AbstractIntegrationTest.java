@@ -23,7 +23,7 @@ import java.util.Map;
  */
 @SpringBootTest(properties = {
         "app.kafka.retry.initial-interval-ms=100",
-        "app.kafka.retry.max-retries=2",
+        "app.kafka.retry.attempts=3",
         "notification.stock-low.recipient=stock-team@test.local"
 })
 public abstract class AbstractIntegrationTest {
