@@ -614,6 +614,59 @@ self-inject the proxy.
 
 ---
 
+## Story 17 — Three weeks, no commits: the bug only the cluster had
+
+**Answers:** *"Tell me about a hard debugging session."* / *"A time you were wrong."* /
+*"How do you debug what you can't reproduce locally?"* / *"Why no commits for three weeks?"*
+
+- **Situation.** The low-stock alert feature (Story 16) worked on docker compose. I deployed it to
+  Kubernetes (minikube) and it misbehaved. It took three weeks and I committed once, at the end.
+- **First wall: the cluster was running three-month-old code and looked perfectly healthy.** Every pod
+  Running, every probe green — but the `stock.low` topic did not exist and product-service logged not
+  one Kafka line. Three things conspired:
+  1. `:latest` + `imagePullPolicy: IfNotPresent` — the manifest cannot express "this exact build";
+  2. `spring.kafka.admin.fail-fast=false` — a service with a broken admin client starts up clean;
+  3. **zsh ate my image tag**: in `-t spring-boot-0-$s:latest`, `:l` is zsh's *lowercase* parameter
+     modifier, so the build produced `...-serviceatest` and the real tag still pointed at June's image.
+  Fix: build inside the cluster's own daemon (`eval $(minikube docker-env)`) and quote the tag.
+  My own verification loop had also printed "OK" for images that didn't match — **a check that cannot
+  fail is worse than no check**, and it ended the investigation early twice.
+- **Then the real bug, and I was wrong about it.** My hypothesis: the retry backoff blocks the poll
+  loop → Kafka evicts the consumer → rebalance → redelivery → more retries. I wrote a k6 script to
+  reproduce it under load, scaled the mail server to zero, and sampled lag every 15s.
+  **Eviction never happened** — Spring pauses the container and keeps polling during a blocking
+  backoff, precisely so `max.poll.interval.ms` isn't breached. The theory died on the measurement.
+- **What was actually wrong** (3 partitions, 2 replicas, 30-event burst):
+
+  | | main-topic drain | consumption rate |
+  |---|---|---|
+  | blocking backoff | ~190 s | **0.27 events/s** |
+  | retry topics | ~40 s | unaffected by failures |
+
+  0.27/s is exactly 1 + 2 + 4 s of backoff per record, burned on the consumer thread. A partition is
+  read strictly in order, so **a healthy product's alert waits behind a broken one** — head-of-line
+  blocking, not eviction. At 1000 events, a five-minute mail outage delays alerts that would have
+  succeeded.
+- **Fix.** `@RetryableTopic`: the failure is forwarded to `stock.low-retry-1000/2000`, the main topic
+  keeps flowing, exhausted records reach the DLT. Pinned by a regression test that asserts a healthy
+  event behind a failing one is handled in under 3 s with a 4 s retry delay — put the blocking retries
+  back and it fails **on the clock**.
+- **Three things the switch broke, all caught by tests:** `attempts` in `@RetryableTopic` counts TOTAL
+  attempts while `DefaultErrorHandler`'s `maxRetries` counted retries after the first (one fewer try,
+  same number in the config); dead letters silently lost their reason, because the retry recoverer
+  doesn't forward Spring's `kafka_dlt-exception-*` headers — I now stamp my own, which also survive a
+  library upgrade; and subclassing `RetryTopicConfigurationSupport` makes Boot's auto-configuration
+  back off, so its scheduler has to be declared too.
+- **Why no commits for three weeks.** The work was reproducing a failure and reading metrics, not
+  writing code. What I did change was config I kept reverting — `try max.poll.interval=10min` is noise
+  in a history, and it would have buried the one change that mattered. I committed when I could prove
+  the cause with a failing test. The final diff is an annotation, a config class and a test.
+
+> **The line:** *"A commit should record a decision. For three weeks I had hypotheses — and the first
+> one was wrong. The measurement is what turned it into a decision worth committing."*
+
+---
+
 # PART 3 — Rapid-fire, from your weak blocks
 
 Cover the answers. Say each out loud. Anything you can't produce in ~20 seconds goes on the re-drill list.
@@ -654,6 +707,13 @@ Cover the answers. Say each out loud. Anything you can't produce in ~20 seconds 
 - *Why did Kafka "need" `@EnableKafka` in Boot 4?* → It didn't, really: the pom had bare `spring-kafka`
   instead of `spring-boot-starter-kafka`. Boot 4 split auto-configuration into modules, so no starter =
   no auto-config. **Same root cause as the Flyway incident** (Story 14). Fixed in the Story 16 work.
+- *Blocking vs non-blocking retries?* → Blocking (`DefaultErrorHandler` + a BackOff) sleeps on the
+  consumer thread, so everything behind that record on the partition waits — I measured 0.27 events/s
+  during a mail outage. Non-blocking (`@RetryableTopic`) forwards the record to a retry topic and the
+  main topic keeps flowing.
+- *Does a long blocking backoff get your consumer kicked out of the group?* → No — Spring pauses the
+  container and keeps polling, so `max.poll.interval.ms` isn't breached. I expected eviction and the
+  measurement proved me wrong; the real cost is head-of-line blocking.
 - *What is a poison pill, and what stops it?* → A record that can never be processed. Kafka reads a
   partition in order, so it blocks everything behind it. `ErrorHandlingDeserializer` + a
   **dead-letter topic** move it aside.
@@ -708,7 +768,8 @@ Start with the blocks you bombed:
 - [ ] Repository port/adapter/JPA — the three types, the dependency inversion (**4/20 → target 16+**)
 - [ ] HTTP client + what changes when a DB call becomes a network call (**4/20**)
 - [ ] Kafka mechanics — partitions, ordering, consumer groups, idempotency (**8/20**) → now drill it
-  through **Story 16**: after-commit, key, UNIQUE event_id, retry vs DLT, poison pill
+  through **Story 16**: after-commit, key, UNIQUE event_id, retry vs DLT, poison pill — and
+  **Story 17** for blocking vs non-blocking retries and head-of-line blocking
 - [ ] Flyway — history table, checksums, forward-fix (**8/20**)
 - [ ] Outbox mechanism — same transaction, the blocking `.get()`, at-least-once (**11/20**)
 - [ ] DTO/Mapper — the four reasons (**10–14/20**)
